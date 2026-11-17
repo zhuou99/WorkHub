@@ -1,0 +1,11 @@
+fastapi>=0.141
+uvicorn>=0.52
+pydantic>=2.13
+SQLAlchemy>=2.1
+itsdangerous>=2.2
+segno>=1.6
+PyYAML>=6.0
+lxml>=6.1
+markdown>=3.11
+cryptography>=50.0
+httpx>=0.28

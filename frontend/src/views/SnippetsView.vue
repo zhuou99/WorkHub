@@ -72,8 +72,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -82,55 +82,54 @@ onMounted(load)
         <div class="page-sub">随手记下的小段代码：按语言筛选，复制即用。</div>
       </div>
       <div class="page-actions">
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新增片段</button>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新增片段</el-button>
       </div>
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索标题 / 说明 / 代码 / 标签" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
+      <div class="search">
+        <el-input v-model="kw" placeholder="搜索标题 / 说明 / 代码 / 标签">
+          <template #prefix><AppIcon name="search" :size="15" /></template>
+        </el-input>
       </div>
-      <select v-model="lang" class="input" style="width: 130px">
-        <option value="">全部语言</option>
-        <option v-for="l in languages" :key="l" :value="l">{{ l }}</option>
-      </select>
+      <el-select :empty-values="[]" v-model="lang" style="width: 130px">
+        <el-option value="" label="全部语言" />
+        <el-option v-for="l in languages" :key="l" :value="l" :label="l" />
+      </el-select>
     </div>
 
-    <div v-if="!shown.length" class="page-empty">
-      <p>{{ kw.trim() || lang ? '没有匹配的片段。' : '还没有代码片段，点右上角记一条。' }}</p>
-    </div>
+    <el-empty v-if="!shown.length" :description="kw.trim() || lang ? '没有匹配的片段。' : '还没有代码片段，点右上角记一条。'" />
 
     <div v-else class="card-grid">
       <div v-for="s in shown" :key="s.id" class="ent-card">
         <div class="ent-top">
           <b class="ent-name">{{ s.title }}</b>
-          <span v-if="s.language" class="pill st-active">{{ s.language }}</span>
+          <el-tag v-if="s.language" size="small" type="success">{{ s.language }}</el-tag>
         </div>
         <div v-if="s.description" class="ent-note">{{ s.description }}</div>
         <pre class="code-preview">{{ (s.code ?? '').slice(0, 300) }}</pre>
         <div v-if="tagList(s).length" class="ent-tags">
-          <span v-for="t in tagList(s)" :key="t" class="tag">{{ t }}</span>
+          <el-tag v-for="t in tagList(s)" :key="t" size="small" round effect="plain" type="info">{{ t }}</el-tag>
         </div>
         <div class="ent-acts">
-          <button class="btn" style="height: 28px; font-size: 12px" @click="copyCode(s)"><AppIcon name="clipboard" :size="13" /> 复制</button>
-          <button class="btn" style="height: 28px; font-size: 12px" @click="openEdit(s)"><AppIcon name="edit" :size="13" /></button>
-          <button class="btn" style="height: 28px; font-size: 12px; color: var(--danger-color)" @click="remove(s)"><AppIcon name="trash" :size="13" /></button>
+          <el-button size="small" @click="copyCode(s)"><AppIcon name="clipboard" :size="13" /> 复制</el-button>
+          <el-button size="small" @click="openEdit(s)"><AppIcon name="edit" :size="13" /></el-button>
+          <el-button size="small" type="danger" plain @click="remove(s)"><AppIcon name="trash" :size="13" /></el-button>
         </div>
       </div>
     </div>
 
     <Modal v-if="editing && edit" :title="edit.id ? '编辑片段' : '新增片段'" icon="code" wide @close="editing = false">
       <div class="form-grid">
-        <div class="field"><label>标题 <span class="req">*</span></label><input v-model="edit.title" class="input" maxlength="300" /></div>
-        <div class="field"><label>语言</label><input v-model="edit.language" class="input" maxlength="50" placeholder="python / js / sql…" /></div>
-        <div class="field full"><label>代码</label><textarea v-model="edit.code" class="input" rows="14" style="font-family: Menlo, Consolas, monospace; font-size: 12.5px" /></div>
-        <div class="field full"><label>说明</label><input v-model="edit.description" class="input" maxlength="1000" /></div>
-        <div class="field full"><label>标签</label><input v-model="edit.tags" class="input" maxlength="300" placeholder="逗号分隔" /></div>
+        <div class="field"><label>标题 <span class="req">*</span></label><el-input v-model="edit.title" maxlength="300" /></div>
+        <div class="field"><label>语言</label><el-input v-model="edit.language" maxlength="50" placeholder="python / js / sql…" /></div>
+        <div class="field full"><label>代码</label><el-input v-model="edit.code" type="textarea" :rows="14" style="font-family: Menlo, Consolas, monospace; font-size: 12.5px" /></div>
+        <div class="field full"><label>说明</label><el-input v-model="edit.description" maxlength="1000" /></div>
+        <div class="field full"><label>标签</label><el-input v-model="edit.tags" maxlength="300" placeholder="逗号分隔" /></div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button class="btn primary" @click="save"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button type="primary" @click="save"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
   </template>

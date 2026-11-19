@@ -130,8 +130,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -140,84 +140,83 @@ onMounted(load)
         <div class="page-sub">链接收藏与网页快照：剪藏一条链接，自动抓标题、摘要和正文。</div>
       </div>
       <div class="page-actions">
-        <button class="btn" @click="openClip"><AppIcon name="bookmark" :size="14" /> 剪藏链接</button>
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 手动添加</button>
+        <el-button @click="openClip"><AppIcon name="bookmark" :size="14" /> 剪藏链接</el-button>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 手动添加</el-button>
       </div>
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索标题 / 摘要 / 标签" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
-      </div>
-      <select v-model="status" class="input" style="width: 100px"><option value="">全部状态</option><option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value">{{ o.text }}</option></select>
-      <button class="btn" :class="{ primary: onlyFav }" @click="onlyFav = !onlyFav"><AppIcon name="bookmark" :size="13" /> 只看收藏</button>
-      <select v-if="allTags.length" v-model="tagFilter" class="input" style="width: 110px"><option value="">全部标签</option><option v-for="t in allTags" :key="t" :value="t">{{ t }}</option></select>
+      <el-input v-model="kw" placeholder="搜索标题 / 摘要 / 标签">
+        <template #prefix><AppIcon name="search" :size="15" /></template>
+      </el-input>
+      <el-select :empty-values="[]" v-model="status" style="width: 100px">
+        <el-option value="" label="全部状态" />
+        <el-option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value" :label="o.text" />
+      </el-select>
+      <el-button :type="onlyFav ? 'primary' : ''" @click="onlyFav = !onlyFav"><AppIcon name="bookmark" :size="13" /> 只看收藏</el-button>
+      <el-select :empty-values="[]" v-if="allTags.length" v-model="tagFilter" style="width: 110px">
+        <el-option value="" label="全部标签" />
+        <el-option v-for="t in allTags" :key="t" :value="t" :label="t" />
+      </el-select>
     </div>
 
-    <div v-if="!shown.length" class="page-empty">
-      <p>{{ kw.trim() || status || onlyFav || tagFilter ? '没有匹配的收藏。' : '还没有收藏，点「剪藏链接」贴一个链接试试。' }}</p>
-    </div>
+    <el-empty v-if="!shown.length" :description="kw.trim() || status || onlyFav || tagFilter ? '没有匹配的收藏。' : '还没有收藏，点「剪藏链接」贴一个链接试试。'" />
 
     <div v-else class="card-grid">
       <div v-for="b in paged" :key="b.id" class="ent-card">
         <div class="ent-top">
           <b class="ent-name" @click="openView(b)">{{ b.title }}</b>
           <span class="dot" :class="{ read: b.status !== 'unread' }" :title="label(BOOKMARK_STATUS, b.status, '未读')" />
-          <button class="icon-btn" type="button" @click="toggleFav(b)">
+          <el-button text class="icon-btn" @click="toggleFav(b)">
             <AppIcon name="bookmark" :size="14" :style="b.favorite ? 'color: var(--warning-color); fill: currentColor' : ''" />
-          </button>
+          </el-button>
         </div>
         <div v-if="b.summary" class="ent-note">{{ b.summary }}</div>
         <div v-if="tagList(b).length" class="ent-tags">
-          <span v-for="t in tagList(b)" :key="t" class="tag">{{ t }}</span>
+          <el-tag v-for="t in tagList(b)" :key="t" size="small" round effect="plain" type="info">{{ t }}</el-tag>
         </div>
         <div class="ent-meta">
           <span><AppIcon name="calendar" :size="12" /> {{ formatDate(b.createTime) }}</span>
           <span v-if="b.site"><AppIcon name="globe" :size="12" /> {{ b.site }}</span>
         </div>
         <div class="ent-acts">
-          <button class="btn" style="height: 28px; font-size: 12px" @click="cycle(b)"><AppIcon name="check" :size="13" /> {{ label(BOOKMARK_STATUS, nextStatus(b.status), '未读') }}</button>
-          <button class="btn" style="height: 28px; font-size: 12px" @click="openView(b)"><AppIcon name="file-text" :size="13" /> 正文</button>
-          <button class="btn" style="height: 28px; font-size: 12px" @click="openEdit(b)"><AppIcon name="edit" :size="13" /></button>
-          <button class="btn" style="height: 28px; font-size: 12px; color: var(--danger-color)" @click="remove(b)"><AppIcon name="trash" :size="13" /></button>
+          <el-button size="small" @click="cycle(b)"><AppIcon name="check" :size="13" /> {{ label(BOOKMARK_STATUS, nextStatus(b.status), '未读') }}</el-button>
+          <el-button size="small" @click="openView(b)"><AppIcon name="file-text" :size="13" /> 正文</el-button>
+          <el-button size="small" @click="openEdit(b)"><AppIcon name="edit" :size="13" /></el-button>
+          <el-button size="small" type="danger" plain @click="remove(b)"><AppIcon name="trash" :size="13" /></el-button>
         </div>
       </div>
     </div>
 
-    <div v-if="maxPage > 1" class="pager">
-      <button class="btn" :disabled="page <= 1" @click="page--"><AppIcon name="chevron-left" :size="13" /></button>
-      <span>{{ Math.min(page, maxPage) }} / {{ maxPage }}</span>
-      <button class="btn" :disabled="page >= maxPage" @click="page++"><AppIcon name="chevron-right" :size="13" /></button>
-    </div>
+    <el-pagination v-if="maxPage > 1" layout="prev, pager, next" :total="shown.length" :page-size="PAGE_SIZE" :current-page="page" @current-change="(p) => page = p" />
 
     <!-- 剪藏 -->
     <Modal v-if="clipVisible" title="剪藏链接" icon="bookmark" @close="clipVisible = false">
       <div class="field">
         <label>文章链接</label>
-        <input v-model="clipUrl" class="input" placeholder="https://…" @keyup.enter="doClip" />
+        <el-input v-model="clipUrl" placeholder="https://…" @keyup.enter="doClip" />
       </div>
       <div v-if="clipError" class="auth-error">{{ clipError }}</div>
       <template #footer>
-        <button class="btn" @click="clipVisible = false">取消</button>
-        <button class="btn primary" :disabled="clipping || !clipUrl.trim()" @click="doClip"><AppIcon name="bookmark" :size="14" /> {{ clipping ? '抓取中…' : '剪藏' }}</button>
+        <el-button @click="clipVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="clipping || !clipUrl.trim()" @click="doClip"><AppIcon name="bookmark" :size="14" /> {{ clipping ? '抓取中…' : '剪藏' }}</el-button>
       </template>
     </Modal>
 
     <!-- 编辑 -->
     <Modal v-if="editing && edit" :title="isNew ? '手动添加' : '编辑收藏'" icon="bookmark" wide @close="editing = false">
       <div class="form-grid">
-        <div class="field full"><label>标题 <span class="req">*</span></label><input v-model="edit.title" class="input" maxlength="300" /></div>
-        <div class="field full"><label>原文链接 <span class="req">*</span></label><input v-model="edit.url" class="input" maxlength="1000" /></div>
-        <div class="field"><label>站点</label><input v-model="edit.site" class="input" maxlength="200" /></div>
-        <div class="field"><label>状态</label><select v-model="edit.status" class="input"><option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value">{{ o.text }}</option></select></div>
-        <div class="field"><label>标签</label><input v-model="edit.tags" class="input" maxlength="300" placeholder="逗号分隔" /></div>
-        <div class="field full"><label>摘要</label><input v-model="edit.summary" class="input" maxlength="500" /></div>
-        <div class="field full"><label>正文（Markdown）</label><textarea v-model="edit.content" class="input" rows="8" /></div>
+        <div class="field full"><label>标题 <span class="req">*</span></label><el-input v-model="edit.title" maxlength="300" /></div>
+        <div class="field full"><label>原文链接 <span class="req">*</span></label><el-input v-model="edit.url" maxlength="1000" /></div>
+        <div class="field"><label>站点</label><el-input v-model="edit.site" maxlength="200" /></div>
+        <div class="field"><label>状态</label><el-select v-model="edit.status"><el-option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value" :label="o.text" /></el-select></div>
+        <div class="field"><label>标签</label><el-input v-model="edit.tags" maxlength="300" placeholder="逗号分隔" /></div>
+        <div class="field full"><label>摘要</label><el-input v-model="edit.summary" maxlength="500" /></div>
+        <div class="field full"><label>正文（Markdown）</label><el-input v-model="edit.content" type="textarea" :rows="8" /></div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button class="btn primary" @click="save"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button type="primary" @click="save"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
 

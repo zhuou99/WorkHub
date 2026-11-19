@@ -9,7 +9,6 @@ const router = useRouter()
 
 const userName = ref('')
 const password = ref('')
-const showPassword = ref(false)
 const busy = ref(false)
 const error = ref('')
 const guard = ref<AuthGuardState | null>(null)
@@ -82,47 +81,46 @@ async function submit() {
 
     <!-- 右侧表单 -->
     <div class="auth-form-side">
-      <button class="icon-btn auth-theme" type="button" title="深色模式（暂未实现）">
+      <el-button text class="auth-theme" title="深色模式（暂未实现）">
         <AppIcon name="moon" :size="16" />
-      </button>
+      </el-button>
 
       <form class="auth-form" @submit.prevent="submit">
         <h2>欢迎回来</h2>
         <p class="auth-sub">登录以进入你的个人工作空间</p>
 
-        <div v-if="error" class="auth-error">{{ error }}</div>
+        <el-alert v-if="error" type="error" :title="error" :closable="false" class="auth-error" />
 
         <div class="auth-field">
           <label for="username">用户名</label>
           <div class="auth-wrap">
-            <AppIcon name="user" :size="15" />
-            <input id="username" v-model="userName" class="input" autocomplete="username" placeholder="admin" />
+            <el-input id="username" v-model="userName" size="large" autocomplete="username" placeholder="admin">
+              <template #prefix><AppIcon name="user" :size="15" /></template>
+            </el-input>
           </div>
         </div>
 
         <div class="auth-field">
           <label for="password">密码</label>
           <div class="auth-wrap">
-            <AppIcon name="lock" :size="15" />
-            <input
+            <el-input
               id="password"
               v-model="password"
-              class="input"
-              :type="showPassword ? 'text' : 'password'"
+              size="large"
+              type="password"
+              show-password
               autocomplete="current-password"
               placeholder="••••••"
-            />
-            <button class="auth-eye" type="button" @click="showPassword = !showPassword">
-              <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="16" />
-            </button>
+            >
+              <template #prefix><AppIcon name="lock" :size="15" /></template>
+            </el-input>
           </div>
         </div>
 
-        <button class="btn primary" type="submit" style="width: 100%; height: 40px; justify-content: center"
-                :disabled="busy">
+        <el-button type="primary" native-type="submit" style="width: 100%; height: 40px" :loading="busy">
           <AppIcon name="log-in" :size="15" />
           {{ busy ? '登录中…' : '登 录' }}
-        </button>
+        </el-button>
 
         <div class="auth-note">
           首次使用 <b>admin</b> · <b>admin123</b>，登录后请在「设置」里改掉

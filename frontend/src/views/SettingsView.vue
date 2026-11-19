@@ -144,9 +144,9 @@ onMounted(() => {
   </div>
 
   <div class="page-toolbar" style="margin-bottom: 18px">
-    <button v-for="t in TABS" :key="t.key" class="btn" :class="{ primary: tab === t.key }" @click="tab = t.key; if (t.key === 'logs') loadLogs()">
+    <el-button v-for="t in TABS" :key="t.key" :type="tab === t.key ? 'primary' : 'default'" @click="tab = t.key; if (t.key === 'logs') loadLogs()">
       <AppIcon :name="t.icon" :size="14" /> {{ t.name }}
-    </button>
+    </el-button>
   </div>
 
   <div v-if="notice" class="auth-note" style="margin-bottom: 14px">{{ notice }}</div>
@@ -163,25 +163,24 @@ onMounted(() => {
 
     <div class="sec">修改口令</div>
     <div class="form-grid">
-      <div class="field full"><label>旧口令</label><input v-model="oldPwd" class="input" type="password" /></div>
-      <div class="field"><label>新口令（至少 6 位）</label><input v-model="newPwd" class="input" type="password" /></div>
-      <div class="field"><label>确认新口令</label><input v-model="confirmPwd" class="input" type="password" /></div>
-      <div class="field full" style="text-align: right"><button class="btn primary" :disabled="busy" @click="changePassword"><AppIcon name="check" :size="14" /> 修改口令</button></div>
+      <div class="field full"><label>旧口令</label><el-input v-model="oldPwd" type="password" /></div>
+      <div class="field"><label>新口令（至少 6 位）</label><el-input v-model="newPwd" type="password" /></div>
+      <div class="field"><label>确认新口令</label><el-input v-model="confirmPwd" type="password" /></div>
+      <div class="field full" style="text-align: right"><el-button type="primary" :disabled="busy" @click="changePassword"><AppIcon name="check" :size="14" /> 修改口令</el-button></div>
     </div>
 
     <template v-if="users.length">
       <div class="sec">账号列表（Owner）</div>
-      <table class="table">
-        <thead><tr><th>账号</th><th>显示名</th><th>角色</th><th>状态</th></tr></thead>
-        <tbody>
-          <tr v-for="u in users" :key="u.id">
-            <td>{{ u.userName }}</td>
-            <td>{{ u.displayName || '—' }}</td>
-            <td>{{ u.role }}</td>
-            <td><span class="pill" :class="u.enabled ? 'st-done' : 'st-void'">{{ u.enabled ? '启用' : '禁用' }}</span></td>
-          </tr>
-        </tbody>
-      </table>
+      <el-table :data="users">
+        <el-table-column label="账号" prop="userName" />
+        <el-table-column label="显示名"><template #default="{ row }">{{ row.displayName || '—' }}</template></el-table-column>
+        <el-table-column label="角色" prop="role" />
+        <el-table-column label="状态">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.enabled ? 'success' : 'danger'">{{ row.enabled ? '启用' : '禁用' }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
     </template>
   </div>
 
@@ -196,9 +195,9 @@ onMounted(() => {
           {{ s.readable ? '已加密保存 · ' + s.masked : '密文解不开，需重录（换机器/换账户）' }}
         </div>
       </div>
-      <input v-model="secretValues[s.key]" class="input" style="width: 220px" :placeholder="s.placeholder" :type="s.configured ? 'text' : 'text'" />
-      <button class="btn" style="height: 28px; font-size: 12px" @click="saveSecret(s.key)">保存</button>
-      <button v-if="s.configured" class="btn" style="height: 28px; font-size: 12px; color: var(--danger-color)" @click="removeSecret(s.key)">清除</button>
+      <el-input v-model="secretValues[s.key]" :placeholder="s.placeholder" style="width: 220px" />
+      <el-button size="small" @click="saveSecret(s.key)">保存</el-button>
+      <el-button v-if="s.configured" size="small" type="danger" @click="removeSecret(s.key)">清除</el-button>
     </div>
     <div class="muted" style="font-size: 12px; margin-top: 8px">密钥用本机密钥加密后存 SysConfig，明文永不通过接口回显。</div>
   </div>
@@ -207,39 +206,38 @@ onMounted(() => {
   <div v-else-if="tab === 'backup'" class="card" style="max-width: 720px">
     <div class="card-title"><AppIcon name="database" :size="16" /> 一键备份</div>
     <div class="form-grid">
-      <div class="field"><label>保留份数（1-100）</label><input v-model.number="bkKeep" class="input" type="number" min="1" max="100" /></div>
-      <div class="field"><label>第二备份目录（可选，绝对路径）</label><input v-model="bkExtra" class="input" /></div>
+      <div class="field"><label>保留份数（1-100）</label><el-input-number v-model="bkKeep" :controls="false" :min="1" :max="100" style="width: 100%" /></div>
+      <div class="field"><label>第二备份目录（可选，绝对路径）</label><el-input v-model="bkExtra" /></div>
       <div class="field full" style="display: flex; gap: 8px">
-        <button class="btn primary" :disabled="busy" @click="runBackup"><AppIcon name="database" :size="14" /> 立即备份</button>
-        <button class="btn" :disabled="busy" @click="saveBackupOptions">保存设置</button>
+        <el-button type="primary" :disabled="busy" @click="runBackup"><AppIcon name="database" :size="14" /> 立即备份</el-button>
+        <el-button :disabled="busy" @click="saveBackupOptions">保存设置</el-button>
       </div>
     </div>
 
     <div class="sec">备份列表</div>
     <div v-if="!backups.length" class="empty">还没有备份包。</div>
-    <table v-else class="table">
-      <thead><tr><th>名称</th><th>时间</th><th>大小</th><th class="right">操作</th></tr></thead>
-      <tbody>
-        <tr v-for="b in backups" :key="b.name">
-          <td>{{ b.name }}</td>
-          <td>{{ b.created }}</td>
-          <td>{{ b.size }}</td>
-          <td class="right"><button class="btn" style="height: 26px; font-size: 12px; color: var(--danger-color)" @click="deleteBackup(b.name)"><AppIcon name="trash" :size="13" /></button></td>
-        </tr>
-      </tbody>
-    </table>
+    <el-table v-else :data="backups">
+      <el-table-column label="名称" prop="name" />
+      <el-table-column label="时间" prop="created" />
+      <el-table-column label="大小" prop="size" />
+      <el-table-column label="操作" align="right">
+        <template #default="{ row }">
+          <el-button size="small" type="danger" @click="deleteBackup(row.name)"><AppIcon name="trash" :size="13" /></el-button>
+        </template>
+      </el-table-column>
+    </el-table>
   </div>
 
   <!-- 定时任务 -->
   <div v-else-if="tab === 'scheduler'" class="card" style="max-width: 640px">
     <div class="card-title"><AppIcon name="calendar-clock" :size="16" /> 定时任务</div>
     <div class="form-grid">
-      <div class="field full"><label style="display: flex; align-items: center; gap: 8px; font-weight: 500"><input v-model="sched.enabled" type="checkbox" /> 启用定时任务</label></div>
-      <div class="field"><label>RSS 同步间隔（分钟，0=关）</label><input v-model.number="sched.rssMinutes" class="input" type="number" min="0" /></div>
-      <div class="field"><label>仓库同步间隔（分钟，0=关）</label><input v-model.number="sched.repoMinutes" class="input" type="number" min="0" /></div>
-      <div class="field"><label>自动备份开关</label><input v-model="sched.backupEnabled" type="checkbox" /></div>
-      <div class="field"><label>备份时间点（0-23 点）</label><input v-model.number="sched.backupHour" class="input" type="number" min="0" max="23" /></div>
-      <div class="field full" style="text-align: right"><button class="btn primary" :disabled="busy" @click="saveScheduler">保存</button></div>
+      <div class="field full"><el-checkbox v-model="sched.enabled" style="font-weight: 500">启用定时任务</el-checkbox></div>
+      <div class="field"><label>RSS 同步间隔（分钟，0=关）</label><el-input-number v-model="sched.rssMinutes" :controls="false" :min="0" style="width: 100%" /></div>
+      <div class="field"><label>仓库同步间隔（分钟，0=关）</label><el-input-number v-model="sched.repoMinutes" :controls="false" :min="0" style="width: 100%" /></div>
+      <div class="field"><label>自动备份开关</label><el-switch v-model="sched.backupEnabled" /></div>
+      <div class="field"><label>备份时间点（0-23 点）</label><el-input-number v-model="sched.backupHour" :controls="false" :min="0" :max="23" style="width: 100%" /></div>
+      <div class="field full" style="text-align: right"><el-button type="primary" :disabled="busy" @click="saveScheduler">保存</el-button></div>
     </div>
   </div>
 
@@ -248,35 +246,43 @@ onMounted(() => {
     <div class="card" style="margin-bottom: 16px">
       <div class="card-title"><AppIcon name="file-text" :size="16" /> 审计日志（最近 {{ audits.length }} 条）</div>
       <div v-if="!audits.length" class="empty">还没有审计记录。</div>
-      <table v-else class="table">
-        <thead><tr><th>时间</th><th>类型</th><th>动作</th><th>账号</th><th>结果</th><th>摘要</th></tr></thead>
-        <tbody>
-          <tr v-for="(a, i) in audits" :key="i">
-            <td>{{ (a.time ?? '').slice(0, 16) }}</td>
-            <td>{{ a.kind }}</td>
-            <td>{{ a.action }}</td>
-            <td>{{ a.userName || '—' }}</td>
-            <td><span class="pill" :class="a.success ? 'st-done' : 'st-void'">{{ a.success ? '成功' : '失败' }}</span></td>
-            <td class="muted">{{ a.detail || '' }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <el-table v-else :data="audits">
+        <el-table-column label="时间">
+          <template #default="{ row }">{{ (row.time ?? '').slice(0, 16) }}</template>
+        </el-table-column>
+        <el-table-column label="类型" prop="kind" />
+        <el-table-column label="动作" prop="action" />
+        <el-table-column label="账号">
+          <template #default="{ row }">{{ row.userName || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="结果">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.success ? 'success' : 'danger'">{{ row.success ? '成功' : '失败' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="摘要">
+          <template #default="{ row }"><span class="muted">{{ row.detail || '' }}</span></template>
+        </el-table-column>
+      </el-table>
     </div>
 
     <div class="card">
       <div class="card-title"><AppIcon name="alert-circle" :size="16" /> 运行错误（最近 {{ errs.length }} 条）</div>
       <div v-if="!errs.length" class="empty">没有运行错误。</div>
-      <table v-else class="table">
-        <thead><tr><th>时间</th><th>级别</th><th>消息</th><th>路径</th></tr></thead>
-        <tbody>
-          <tr v-for="(e, i) in errs" :key="i">
-            <td>{{ (e.time ?? '').slice(0, 16) }}</td>
-            <td><span class="pill" :class="e.level === 'Error' ? 'st-void' : 'st-hold'">{{ e.level }}</span></td>
-            <td>{{ e.message }}</td>
-            <td class="muted">{{ e.path || '' }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <el-table v-else :data="errs">
+        <el-table-column label="时间">
+          <template #default="{ row }">{{ (row.time ?? '').slice(0, 16) }}</template>
+        </el-table-column>
+        <el-table-column label="级别">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.level === 'Error' ? 'danger' : 'warning'">{{ row.level }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="消息" prop="message" />
+        <el-table-column label="路径">
+          <template #default="{ row }"><span class="muted">{{ row.path || '' }}</span></template>
+        </el-table-column>
+      </el-table>
     </div>
   </div>
 </template>

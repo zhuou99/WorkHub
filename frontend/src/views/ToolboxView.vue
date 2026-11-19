@@ -15,7 +15,7 @@ const busy = ref(false)
 const err = ref('')
 
 // 面板工具参数
-const p = ref<Record<string, string>>({})
+const p = ref<Record<string, any>>({})
 
 const UNIT_GROUPS = [
   { id: 'length', name: '长度', units: ['mm', 'cm', 'm', 'km', 'in', 'ft', 'yd', 'mi', 'nmi', 'ly'] },
@@ -112,15 +112,16 @@ onMounted(load)
   </div>
 
   <div class="page-toolbar">
-    <div class="search" style="position: relative">
-      <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索工具" />
-      <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
+    <div class="search">
+      <el-input v-model="kw" placeholder="搜索工具">
+        <template #prefix><AppIcon name="search" :size="15" /></template>
+      </el-input>
     </div>
   </div>
 
   <div class="cols" style="grid-template-columns: 200px 1fr; align-items: start">
     <!-- 工具列表 -->
-    <div class="col">
+    <div class="col tool-list">
       <div v-for="[cat, list] in grouped" :key="cat" class="card" style="padding: 12px; margin-bottom: 12px">
         <div class="muted" style="font-size: 11px; margin-bottom: 6px; padding-left: 4px">{{ cat }}</div>
         <button v-for="t in list" :key="t.id" class="app-sitem" :class="{ on: selectedId === t.id }" style="width: 100%" @click="pick(t.id)">
@@ -139,12 +140,12 @@ onMounted(load)
 
         <!-- io 工具 -->
         <template v-if="selected.kind === 'io'">
-          <textarea v-model="input" class="input" rows="6" :placeholder="'输入内容…'" />
+          <el-input v-model="input" type="textarea" :rows="6" placeholder="输入内容…" />
           <div class="page-toolbar" style="margin: 10px 0">
-            <select v-if="selected.options?.length" v-model="option" class="input" style="width: 180px">
-              <option v-for="o in selected.options" :key="o.value" :value="o.value">{{ o.label }}</option>
-            </select>
-            <button class="btn primary" :disabled="busy" @click="run"><AppIcon name="zap" :size="14" /> {{ busy ? '执行中…' : '执行' }}</button>
+            <el-select v-if="selected.options?.length" v-model="option" style="width: 180px">
+              <el-option v-for="o in selected.options" :key="o.value" :value="o.value" :label="o.label" />
+            </el-select>
+            <el-button type="primary" :disabled="busy" @click="run"><AppIcon name="zap" :size="14" /> {{ busy ? '执行中…' : '执行' }}</el-button>
           </div>
           <div v-if="err" class="auth-error">{{ err }}</div>
           <pre v-else-if="output" class="code-preview" style="min-height: 60px">{{ output }}</pre>
@@ -154,30 +155,34 @@ onMounted(load)
         <template v-else-if="selected.id === 'unit'">
           <div class="form-grid">
             <div class="field"><label>组</label>
-              <select v-model="p.groupId" class="input"><option v-for="g in UNIT_GROUPS" :key="g.id" :value="g.id">{{ g.name }}</option></select>
+              <el-select v-model="p.groupId" style="width: 100%"><el-option v-for="g in UNIT_GROUPS" :key="g.id" :value="g.id" :label="g.name" /></el-select>
             </div>
             <div class="field"><label>从</label>
-              <select v-model="p.fromId" class="input"><option v-for="u in UNIT_GROUPS.find((g) => g.id === p.groupId)?.units ?? []" :key="u" :value="u">{{ u }}</option></select>
+              <el-select v-model="p.fromId" style="width: 100%"><el-option v-for="u in UNIT_GROUPS.find((g) => g.id === p.groupId)?.units ?? []" :key="u" :value="u" :label="u" /></el-select>
             </div>
-            <div class="field"><label>值</label><input v-model="p.value" class="input" type="number" /></div>
-            <div class="field" style="align-self: end"><button class="btn primary" :disabled="busy" @click="run">换算</button></div>
+            <div class="field"><label>值</label><el-input-number v-model="p.value" :controls="false" style="width: 100%" /></div>
+            <div class="field" style="align-self: end"><el-button type="primary" :disabled="busy" @click="run">换算</el-button></div>
           </div>
-          <table v-if="data?.units" class="table" style="margin-top: 12px">
-            <thead><tr><th>单位</th><th class="right">结果</th></tr></thead>
-            <tbody><tr v-for="u in (data.units)" :key="u.id"><td>{{ u.label }}</td><td class="num">{{ u.text }}</td></tr></tbody>
-          </table>
+          <el-table v-if="data?.units" :data="data.units" style="margin-top: 12px">
+            <el-table-column label="单位">
+              <template #default="{ row }">{{ row.label }}</template>
+            </el-table-column>
+            <el-table-column label="结果" align="right">
+              <template #default="{ row }">{{ row.text }}</template>
+            </el-table-column>
+          </el-table>
         </template>
 
         <!-- regex 面板 -->
         <template v-else-if="selected.id === 'regex'">
-          <div class="field" style="margin-bottom: 8px"><label>表达式</label><input v-model="p.pattern" class="input" /></div>
-          <div class="field" style="margin-bottom: 12px"><label>测试文本</label><textarea v-model="p.subject" class="input" rows="4" /></div>
-          <button class="btn primary" :disabled="busy" @click="run">匹配</button>
+          <div class="field" style="margin-bottom: 8px"><label>表达式</label><el-input v-model="p.pattern" /></div>
+          <div class="field" style="margin-bottom: 12px"><label>测试文本</label><el-input v-model="p.subject" type="textarea" :rows="4" /></div>
+          <el-button type="primary" :disabled="busy" @click="run">匹配</el-button>
           <div v-if="err" class="auth-error" style="margin-top: 8px">{{ err }}</div>
           <div v-else-if="data?.matches" style="margin-top: 10px">
             <div class="muted" style="font-size: 12px">{{ data.matches.length }} 个匹配</div>
             <div v-for="(m, i) in (data.matches)" :key="i" class="rel">
-              <span class="pill st-talking">#{{ m.index }}</span><span class="rel-t" style="font-family: monospace">{{ m.value }}</span>
+              <el-tag size="small" type="info">#{{ m.index }}</el-tag><span class="rel-t" style="font-family: monospace">{{ m.value }}</span>
               <span v-if="m.groups?.length" class="muted">{{ JSON.stringify(m.groups) }}</span>
             </div>
           </div>
@@ -186,10 +191,10 @@ onMounted(load)
         <!-- diff / count / hmac / guid / password / color / translate 面板 -->
         <template v-else-if="selected.id === 'diff'">
           <div class="cols" style="grid-template-columns: 1fr 1fr; gap: 10px">
-            <div class="field"><label>原文</label><textarea v-model="p.left" class="input" rows="6" /></div>
-            <div class="field"><label>新文</label><textarea v-model="p.right" class="input" rows="6" /></div>
+            <div class="field"><label>原文</label><el-input v-model="p.left" type="textarea" :rows="6" /></div>
+            <div class="field"><label>新文</label><el-input v-model="p.right" type="textarea" :rows="6" /></div>
           </div>
-          <button class="btn primary" :disabled="busy" @click="run">比对</button>
+          <el-button type="primary" :disabled="busy" @click="run">比对</el-button>
           <div v-if="data?.rows" style="margin-top: 10px">
             <div class="muted" style="font-size: 12px">增 {{ (data).add }} · 删 {{ (data).del }} · 同 {{ (data).same }}</div>
             <div v-for="(r, i) in (data.rows)" :key="i" style="font-family: monospace; font-size: 12.5px; padding: 2px 6px" :style="r.op === 'add' ? 'background: var(--success-soft)' : r.op === 'del' ? 'background: var(--danger-soft)' : ''">{{ r.op === 'add' ? '+' : r.op === 'del' ? '-' : ' ' }} {{ r.line }}</div>
@@ -197,65 +202,65 @@ onMounted(load)
         </template>
 
         <template v-else-if="selected.id === 'count'">
-          <textarea v-model="p.text" class="input" rows="6" />
-          <button class="btn primary" :disabled="busy" @click="run" style="margin-top: 8px">统计</button>
+          <el-input v-model="p.text" type="textarea" :rows="6" />
+          <el-button type="primary" :disabled="busy" @click="run" style="margin-top: 8px">统计</el-button>
           <div v-if="data" class="kv" style="margin-top: 12px; grid-template-columns: repeat(4, 1fr)">
             <div v-for="(v, k) in data" :key="k"><i>{{ k }}</i>{{ v }}</div>
           </div>
         </template>
 
         <template v-else-if="selected.id === 'hmac'">
-          <div class="field" style="margin-bottom: 8px"><label>密钥</label><input v-model="p.key" class="input" /></div>
-          <div class="field" style="margin-bottom: 10px"><label>数据</label><input v-model="p.data" class="input" /></div>
-          <button class="btn primary" :disabled="busy" @click="run">签名</button>
+          <div class="field" style="margin-bottom: 8px"><label>密钥</label><el-input v-model="p.key" /></div>
+          <div class="field" style="margin-bottom: 10px"><label>数据</label><el-input v-model="p.data" /></div>
+          <el-button type="primary" :disabled="busy" @click="run">签名</el-button>
           <pre v-if="output" class="code-preview" style="margin-top: 10px">{{ output }}</pre>
         </template>
 
         <template v-else-if="selected.id === 'guid'">
           <div class="page-toolbar">
-            <div class="field" style="margin-bottom: 0"><label style="font-size: 11px">数量</label><input v-model="p.count" class="input" type="number" style="width: 80px" /></div>
+            <div class="field" style="margin-bottom: 0"><label style="font-size: 11px">数量</label><el-input-number v-model="p.count" :controls="false" style="width: 80px" /></div>
             <div class="field" style="margin-bottom: 0"><label style="font-size: 11px">格式</label>
-              <select v-model="p.format" class="input" style="width: 120px"><option value="D">标准</option><option value="N">无连字符</option><option value="B">{花括号}</option><option value="P">(圆括号)</option><option value="ULID">ULID</option></select>
+              <el-select v-model="p.format" style="width: 120px"><el-option value="D" label="标准" /><el-option value="N" label="无连字符" /><el-option value="B" label="{花括号}" /><el-option value="P" label="(圆括号)" /><el-option value="ULID" label="ULID" /></el-select>
             </div>
-            <button class="btn primary" :disabled="busy" @click="run">生成</button>
+            <el-button type="primary" :disabled="busy" @click="run">生成</el-button>
           </div>
           <pre v-if="data?.ids" class="code-preview" style="margin-top: 10px">{{ data.ids.join('\n') }}</pre>
         </template>
 
         <template v-else-if="selected.id === 'password'">
           <div class="page-toolbar">
-            <div class="field" style="margin-bottom: 0"><label style="font-size: 11px">长度</label><input v-model="p.length" class="input" type="number" style="width: 80px" /></div>
-            <div class="field" style="margin-bottom: 0"><label style="font-size: 11px">数量</label><input v-model="p.count" class="input" type="number" style="width: 80px" /></div>
-            <button class="btn primary" :disabled="busy" @click="run">生成</button>
+            <div class="field" style="margin-bottom: 0"><label style="font-size: 11px">长度</label><el-input-number v-model="p.length" :controls="false" style="width: 80px" /></div>
+            <div class="field" style="margin-bottom: 0"><label style="font-size: 11px">数量</label><el-input-number v-model="p.count" :controls="false" style="width: 80px" /></div>
+            <el-button type="primary" :disabled="busy" @click="run">生成</el-button>
           </div>
           <pre v-if="data?.passwords" class="code-preview" style="margin-top: 10px">{{ data.passwords.join('\n') }}</pre>
         </template>
 
         <template v-else-if="selected.id === 'color'">
-          <div class="field" style="margin-bottom: 10px"><label>颜色（#RRGGBB）</label><input v-model="p.hex" class="input" style="width: 160px" /></div>
-          <button class="btn primary" :disabled="busy" @click="run">转换</button>
+          <div class="field" style="margin-bottom: 10px"><label>颜色（#RRGGBB）</label><el-input v-model="p.hex" style="width: 160px" /></div>
+          <el-button type="primary" :disabled="busy" @click="run">转换</el-button>
           <div v-if="data" class="kv" style="margin-top: 12px; grid-template-columns: repeat(3, 1fr)">
             <div><i>HEX</i>{{ data.hex }}</div>
             <div><i>RGB</i>{{ data.rgb }}</div>
             <div><i>HSL</i>{{ data.hsl }}</div>
           </div>
           <div v-if="data?.shades" class="ent-tags" style="margin-top: 10px">
-            <span v-for="s in (data.shades)" :key="s.hex" class="tag" :style="{ background: s.hex, color: '#fff' }">{{ s.label }}</span>
+            <el-tag v-for="s in (data.shades)" :key="s.hex" size="small" round effect="plain" type="info" :style="{ background: s.hex, color: '#fff' }">{{ s.label }}</el-tag>
           </div>
         </template>
 
         <!-- translate / qr 简化面板 -->
         <template v-else-if="selected.id === 'translate' || selected.id === 'qr'">
-          <textarea v-model="input" class="input" rows="4" placeholder="输入内容…" />
-          <button class="btn primary" :disabled="busy" @click="run" style="margin-top: 8px">执行</button>
+          <el-input v-model="input" type="textarea" :rows="4" placeholder="输入内容…" />
+          <el-button type="primary" :disabled="busy" @click="run" style="margin-top: 8px">执行</el-button>
           <div v-if="err" class="auth-error" style="margin-top: 8px">{{ err }}</div>
           <pre v-else-if="output" class="code-preview" style="margin-top: 10px">{{ output }}</pre>
         </template>
 
         <!-- 其他 panel 工具兜底 -->
         <template v-else>
-          <textarea v-model="input" class="input" rows="4" />
-          <button class="btn primary" :disabled="busy" @click="run" style="margin-top: 8px">执行</button>
+          <el-input v-model="input" type="textarea" :rows="4" />
+          <el-button type="primary" :disabled="busy" @click="run" style="margin-top: 8px">执行</el-button>
           <div v-if="err" class="auth-error" style="margin-top: 8px">{{ err }}</div>
           <pre v-else-if="output" class="code-preview" style="margin-top: 10px">{{ output }}</pre>
         </template>

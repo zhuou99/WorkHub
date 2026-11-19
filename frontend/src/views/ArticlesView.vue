@@ -90,8 +90,8 @@ onMounted(() => { load(); loadProjects() })
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -100,68 +100,77 @@ onMounted(() => { load(); loadProjects() })
         <div class="page-sub">文章写作与发布：状态从草稿推进到已发布，正文走 Markdown。</div>
       </div>
       <div class="page-actions">
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新建文章</button>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新建文章</el-button>
       </div>
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索标题 / 摘要 / 内容 / 标签" @keyup.enter="applySearch" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
+      <div class="search">
+        <el-input v-model="kw" placeholder="搜索标题 / 摘要 / 内容 / 标签" @keyup.enter="applySearch">
+          <template #prefix><AppIcon name="search" :size="15" /></template>
+        </el-input>
       </div>
-      <button class="btn" @click="applySearch"><AppIcon name="search" :size="13" /> 查询</button>
-      <select :value="projectId" class="input" style="width: 160px" @change="changeProject(($event.target as HTMLSelectElement).value)">
-        <option value="">全部项目</option>
-        <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}{{ p.status === 'done' ? '（已完结）' : '' }}</option>
-      </select>
+      <el-button @click="applySearch"><AppIcon name="search" :size="13" /> 查询</el-button>
+      <el-select :empty-values="[]" :model-value="projectId" style="width: 160px" @update:model-value="changeProject">
+        <el-option value="" label="全部项目" />
+        <el-option v-for="p in projects" :key="p.id" :value="p.id" :label="p.name + (p.status === 'done' ? '（已完结）' : '')" />
+      </el-select>
     </div>
 
-    <div v-if="!items.length" class="page-empty">
-      <p>{{ keyword || projectId ? '没有匹配的文章。' : '还没有文章，点右上角「新建文章」开一篇。' }}</p>
-    </div>
+    <el-empty v-if="!items.length" :description="keyword || projectId ? '没有匹配的文章。' : '还没有文章，点右上角「新建文章」开一篇。'" />
 
-    <table v-else class="table">
-      <thead><tr><th>标题 / 摘要</th><th>状态</th><th>项目</th><th>发布时间</th><th class="right">操作</th></tr></thead>
-      <tbody>
-        <tr v-for="article in items" :key="article.id">
-          <td>
-            <b style="cursor: pointer" @click="openEdit(article)">{{ article.title || '未命名' }}</b>
-            <div class="tax">{{ preview(article) }}</div>
-          </td>
-          <td><span class="pill" :class="'st-' + (article.status || 'draft')">{{ label(ARTICLE_STATUS, article.status, '草稿') }}</span></td>
-          <td>{{ projName(article.projectId) }}</td>
-          <td>{{ article.publishTime ? formatDateTime(article.publishTime) : '—' }}</td>
-          <td class="right"><div class="row-actions">
-            <button v-if="article.status !== 'done'" class="btn" style="height: 26px; font-size: 12px; color: var(--success-color)" @click="setStatus(article, 'done')"><AppIcon name="check" :size="13" /> 发布</button>
-            <button class="btn" style="height: 26px; font-size: 12px" @click="openEdit(article)"><AppIcon name="edit" :size="13" /></button>
-            <button class="btn" style="height: 26px; font-size: 12px; color: var(--danger-color)" @click="remove(article)"><AppIcon name="trash" :size="13" /></button>
-          </div></td>
-        </tr>
-      </tbody>
-    </table>
+    <el-table v-else :data="items">
+      <el-table-column label="标题 / 摘要">
+        <template #default="{ row }">
+          <b style="cursor: pointer" @click="openEdit(row as Article)">{{ row.title || '未命名' }}</b>
+          <div class="tax">{{ preview(row as Article) }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column label="状态">
+        <template #default="{ row }">
+          <el-tag size="small" :type="row.status === 'done' ? 'success' : 'info'">{{ label(ARTICLE_STATUS, row.status, '草稿') }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="项目">
+        <template #default="{ row }">{{ projName(row.projectId) }}</template>
+      </el-table-column>
+      <el-table-column label="发布时间">
+        <template #default="{ row }">{{ row.publishTime ? formatDateTime(row.publishTime) : '—' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" align="right">
+        <template #default="{ row }">
+          <div class="row-actions">
+            <el-button v-if="row.status !== 'done'" size="small" type="success" plain @click="setStatus(row as Article, 'done')"><AppIcon name="check" :size="13" /> 发布</el-button>
+            <el-button size="small" @click="openEdit(row as Article)"><AppIcon name="edit" :size="13" /></el-button>
+            <el-button size="small" type="danger" plain @click="remove(row as Article)"><AppIcon name="trash" :size="13" /></el-button>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
 
-    <div v-if="pageCount > 1" class="pager">
-      <button class="btn" :disabled="page <= 1" @click="goPage(page - 1)"><AppIcon name="chevron-left" :size="13" /></button>
-      <span>{{ page }} / {{ pageCount }}（共 {{ total }} 条）</span>
-      <button class="btn" :disabled="page >= pageCount" @click="goPage(page + 1)"><AppIcon name="chevron-right" :size="13" /></button>
-    </div>
+    <el-pagination v-if="pageCount > 1" layout="prev, pager, next" :total="total" :page-size="PAGE_SIZE" :current-page="page" @current-change="goPage" />
 
     <Modal v-if="editing && edit" :title="isNew ? '新建文章' : '编辑文章'" icon="file-text" wide @close="editing = false">
       <div class="form-grid">
-        <div class="field full"><label>标题 <span class="req">*</span></label><input v-model="edit.title" class="input" maxlength="300" /></div>
-        <div class="field full"><label>摘要</label><input v-model="edit.summary" class="input" maxlength="1000" /></div>
-        <div class="field full"><label>正文（Markdown）</label><textarea v-model="edit.content" class="input" rows="16" placeholder="支持 Markdown" /></div>
-        <div class="field"><label>标签</label><input v-model="edit.tags" class="input" maxlength="300" placeholder="逗号分隔" /></div>
+        <div class="field full"><label>标题 <span class="req">*</span></label><el-input v-model="edit.title" maxlength="300" /></div>
+        <div class="field full"><label>摘要</label><el-input v-model="edit.summary" maxlength="1000" /></div>
+        <div class="field full"><label>正文（Markdown）</label><el-input v-model="edit.content" type="textarea" :rows="16" placeholder="支持 Markdown" /></div>
+        <div class="field"><label>标签</label><el-input v-model="edit.tags" maxlength="300" placeholder="逗号分隔" /></div>
         <div class="field"><label>项目</label>
-          <select v-model="edit.projectId" class="input"><option :value="null">不挂项目</option><option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option></select>
+          <el-select :empty-values="[]" v-model="edit.projectId" style="width: 100%">
+            <el-option :value="(null as any)" label="不挂项目" />
+            <el-option v-for="p in projects" :key="p.id" :value="p.id" :label="p.name" />
+          </el-select>
         </div>
         <div class="field"><label>状态</label>
-          <select v-model="edit.status" class="input"><option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value">{{ o.text }}</option></select>
+          <el-select v-model="edit.status" style="width: 100%">
+            <el-option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value" :label="o.text" />
+          </el-select>
         </div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button class="btn primary" @click="save"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button type="primary" @click="save"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
   </template>

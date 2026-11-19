@@ -138,8 +138,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -148,8 +148,8 @@ onMounted(load)
         <div class="page-sub">订阅博客与技术动态：条件请求省流量，判重去重，未读一目了然。</div>
       </div>
       <div class="page-actions">
-        <button class="btn" :disabled="busy || !feeds.length" @click="syncAll"><AppIcon name="refresh" :size="14" /> 同步全部</button>
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 添加订阅</button>
+        <el-button :disabled="busy || !feeds.length" @click="syncAll"><AppIcon name="refresh" :size="14" /> 同步全部</el-button>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 添加订阅</el-button>
       </div>
     </div>
 
@@ -166,13 +166,12 @@ onMounted(load)
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索条目" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
-      </div>
-      <button class="btn" :class="{ primary: filter === 'unread' }" @click="filter = filter === 'unread' ? '' : 'unread'">未读</button>
-      <button class="btn" :class="{ primary: filter === 'star' }" @click="filter = filter === 'star' ? '' : 'star'">已标记</button>
-      <button class="btn" @click="readAll">全部已读</button>
+      <el-input v-model="kw" placeholder="搜索条目">
+        <template #prefix><AppIcon name="search" :size="15" /></template>
+      </el-input>
+      <el-button :type="filter === 'unread' ? 'primary' : ''" @click="filter = filter === 'unread' ? '' : 'unread'">未读</el-button>
+      <el-button :type="filter === 'star' ? 'primary' : ''" @click="filter = filter === 'star' ? '' : 'star'">已标记</el-button>
+      <el-button @click="readAll">全部已读</el-button>
     </div>
 
     <div class="cols" style="grid-template-columns: 240px 1fr; align-items: start">
@@ -187,18 +186,16 @@ onMounted(load)
               <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ f.title }}</span>
               <span v-if="unread[f.id]" class="kb-count">{{ unread[f.id] }}</span>
             </button>
-            <button class="icon-btn" type="button" title="同步" @click="syncOne(f)"><AppIcon name="refresh" :size="13" /></button>
-            <button class="icon-btn" type="button" :title="f.paused ? '恢复' : '暂停'" @click="togglePause(f)"><AppIcon :name="f.paused ? 'circle' : 'check'" :size="13" /></button>
-            <button class="icon-btn" type="button" title="退订" @click="deleteFeed(f)"><AppIcon name="trash" :size="13" /></button>
+            <el-button text class="icon-btn" title="同步" @click="syncOne(f)"><AppIcon name="refresh" :size="13" /></el-button>
+            <el-button text class="icon-btn" :title="f.paused ? '恢复' : '暂停'" @click="togglePause(f)"><AppIcon :name="f.paused ? 'circle' : 'check'" :size="13" /></el-button>
+            <el-button text class="icon-btn" title="退订" @click="deleteFeed(f)"><AppIcon name="trash" :size="13" /></el-button>
           </div>
         </div>
       </div>
 
       <!-- 条目 -->
       <div class="col">
-        <div v-if="!shown.length" class="page-empty" style="padding: 40px 20px">
-          <p>{{ kw.trim() || filter ? '没有符合条件的条目。' : feedId ? '这个源还没有抓到条目，点「同步」试一次。' : '还没有条目，先添加一个订阅源。' }}</p>
-        </div>
+        <el-empty v-if="!shown.length" :description="kw.trim() || filter ? '没有符合条件的条目。' : feedId ? '这个源还没有抓到条目，点「同步」试一次。' : '还没有条目，先添加一个订阅源。'" />
         <div v-else class="card" style="padding: 0; overflow: hidden">
           <div v-for="i in shown" :key="i.id" class="rel" style="padding: 11px 14px">
             <span class="dot" :class="{ read: i.read }" style="cursor: pointer" :title="i.read ? '标未读' : '标已读'" @click="setRead(i)" />
@@ -207,13 +204,13 @@ onMounted(load)
               <div class="tax" style="margin-top: 2px">{{ i.summary ? i.summary.slice(0, 120) : '' }}</div>
               <div class="muted" style="font-size: 11px; margin-top: 3px">{{ feedName(i.feedId) }}{{ i.author ? ' · ' + i.author : '' }} · {{ formatDate(i.publishedAt) }}</div>
             </div>
-            <button class="icon-btn" type="button" :title="i.starred ? '取消标记' : '标记'" @click="toggleStar(i)">
+            <el-button text class="icon-btn" :title="i.starred ? '取消标记' : '标记'" @click="toggleStar(i)">
               <AppIcon name="bookmark" :size="14" :style="i.starred ? 'color: var(--warning-color)' : ''" />
-            </button>
-            <button class="icon-btn" type="button" title="删除" @click="deleteItem(i)"><AppIcon name="trash" :size="13" /></button>
+            </el-button>
+            <el-button text class="icon-btn" title="删除" @click="deleteItem(i)"><AppIcon name="trash" :size="13" /></el-button>
           </div>
           <div v-if="shown.length === itemLimit" style="text-align: center; padding: 12px">
-            <button class="btn" @click="moreItems">更多条目</button>
+            <el-button @click="moreItems">更多条目</el-button>
           </div>
         </div>
       </div>
@@ -222,7 +219,7 @@ onMounted(load)
     <Modal v-if="addVisible" title="添加订阅" icon="rss" @close="addVisible = false">
       <div class="field" style="margin-bottom: 12px">
         <label>订阅地址（feed 链接或站点首页都行）</label>
-        <input v-model="addUrl" class="input" placeholder="https://…" @keyup.enter="addFeed" />
+        <el-input v-model="addUrl" placeholder="https://…" @keyup.enter="addFeed" />
       </div>
       <div v-if="addError" class="auth-error">{{ addError }}</div>
       <div class="sec" style="margin-top: 4px">预设</div>
@@ -231,8 +228,8 @@ onMounted(load)
         <span class="rel-a muted">{{ preset.url }}</span>
       </div>
       <template #footer>
-        <button class="btn" @click="addVisible = false">取消</button>
-        <button class="btn primary" :disabled="busy || !addUrl.trim()" @click="addFeed"><AppIcon name="plus" :size="14" /> {{ busy ? '订阅中…' : '订阅' }}</button>
+        <el-button @click="addVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="busy || !addUrl.trim()" @click="addFeed"><AppIcon name="plus" :size="14" /> {{ busy ? '订阅中…' : '订阅' }}</el-button>
       </template>
     </Modal>
   </template>

@@ -241,12 +241,12 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
 
-  <div v-else-if="error" class="card">
-    <div class="empty">加载工作台失败：{{ error }}</div>
-    <button class="btn" style="margin-top: 12px" @click="load">重试</button>
-  </div>
+  <template v-else-if="error">
+    <el-alert type="error" :title="'加载工作台失败：' + error" :closable="false" show-icon />
+    <div style="margin-top: 12px"><el-button @click="load">重试</el-button></div>
+  </template>
 
   <template v-else>
     <div class="page-head">
@@ -258,16 +258,15 @@ onMounted(load)
         <div class="quick">
           <div class="quick-in">
             <AppIcon name="zap" :size="15" />
-            <input
+            <el-input
               v-model="quick"
-              class="input"
               placeholder="快记：想到什么先丢这里，回车进笔记收件箱"
               @keyup.enter="quickAdd"
             />
           </div>
-          <button class="btn primary" :disabled="!quick.trim()" @click="quickAdd">
+          <el-button type="primary" :disabled="!quick.trim()" @click="quickAdd">
             <AppIcon name="plus" :size="14" /> 记下
-          </button>
+          </el-button>
         </div>
       </div>
     </div>
@@ -366,7 +365,7 @@ onMounted(load)
           </div>
           <div v-if="!alerts.length" class="empty">没有逾期任务、逾期发票和到期维护，清净。</div>
           <div v-for="(a, i) in alerts" :key="i" class="row">
-            <span class="pill" :class="a.kind">{{ a.tag }}</span>
+            <el-tag size="small" :type="a.kind === 'warn' ? 'warning' : 'danger'">{{ a.tag }}</el-tag>
             <span class="row-t">{{ a.text }}</span>
             <span class="row-d">{{ a.right }}</span>
           </div>
@@ -379,7 +378,7 @@ onMounted(load)
           </div>
           <div v-if="!recentNotes.length" class="empty">还没有笔记，用上面的快记框记第一条。</div>
           <div v-for="n in recentNotes" :key="n.id" class="row" @click="$router.push('/notes')">
-            <span v-if="n.pinned" class="pin">置顶</span>
+            <el-tag v-if="n.pinned" size="small" round effect="plain">置顶</el-tag>
             <span class="row-t">{{ n.title }}</span>
             <span class="row-d">{{ formatTime(n.createTime) }}</span>
           </div>
@@ -420,7 +419,7 @@ onMounted(load)
           </div>
           <div v-if="!repos.length" class="empty">还没镜像 GitHub 仓库，去「开源项目」填 owner/name。</div>
           <div v-for="r in repos.slice(0, 4)" :key="r.id" class="row" @click="$router.push('/repos')">
-            <span class="pill">{{ r.stars.toLocaleString('zh-CN') }} ★</span>
+            <el-tag size="small" type="info">{{ r.stars.toLocaleString('zh-CN') }} ★</el-tag>
             <span class="row-t">{{ r.owner }}/{{ r.name }}</span>
             <span class="row-d">{{ r.syncTime ? formatMd(r.syncTime) + ' 同步' : '未同步' }}</span>
           </div>

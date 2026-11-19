@@ -1,46 +1,27 @@
 /* 业务页面样式：看板、卡片网格、弹窗、表单、里程碑、删除预览 */
 
-/* ---------- 弹窗 ---------- */
-.modal-overlay {
-  position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, .45);
-  display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; overflow-y: auto;
-}
-.modal-panel {
-  width: 100%; max-width: 560px; background: var(--bg-card); border-radius: var(--radius-lg);
-  box-shadow: 0 18px 48px rgba(15, 23, 42, .22); overflow: hidden;
-}
-.modal-panel.wide { max-width: 900px; }
-.modal-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px; border-bottom: 1px solid var(--border-light);
-}
+/* ---------- Element Plus 组件在本项目中的定制 ---------- */
+
+/* 状态胶囊改用 el-tag 后，保留原有的加粗观感 */
+.el-tag { font-weight: 600; }
+
+/* 旧 pill.st-maintain / st-sent 的紫色没有对应的 EP 语义色，单独给个类 */
+.el-tag.tag-purple { --el-tag-bg-color: #f0ebff; --el-tag-border-color: #f0ebff; --el-tag-text-color: #7c5cff; }
+
+/* 弹窗标题（Modal 组件内部 el-dialog 的 header 插槽沿用） */
+.wh-modal .el-dialog__header { margin-right: 16px; padding: 16px 20px; border-bottom: 1px solid var(--border-light); }
+.wh-modal .el-dialog__body { padding: 20px; max-height: 68vh; overflow-y: auto; }
+.wh-modal .el-dialog__footer { padding: 14px 20px; border-top: 1px solid var(--border-light); background: var(--bg-sidebar); }
+
+
+/* ---------- 弹窗（Modal 组件已换成 el-dialog 封装，仅保留标题样式） ---------- */
 .modal-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
-.modal-head .icon-btn svg { transform: rotate(45deg); }
-.modal-body { padding: 20px; max-height: 68vh; overflow-y: auto; }
-.modal-foot {
-  display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px;
-  border-top: 1px solid var(--border-light); background: var(--bg-sidebar);
-}
 
 /* ---------- 表单控件 ---------- */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
 .form-grid .full { grid-column: 1 / -1; }
 .field label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); }
 .field .req { color: var(--danger-color); }
-.field input[type='date'], .field input[type='datetime-local'] { color-scheme: light; }
-textarea.input { height: auto; min-height: 70px; padding: 9px 11px; resize: vertical; font: inherit; line-height: 1.6; }
-select.input { appearance: auto; }
-
-/* ---------- 状态胶囊 ---------- */
-.pill.st-talking, .pill.st-todo    { background: var(--bg-hover); color: var(--text-secondary); }
-.pill.st-active, .pill.st-doing    { background: var(--success-soft); color: var(--success-color); }
-.pill.st-accept, .pill.st-opened   { background: var(--info-soft); color: var(--primary-color); }
-.pill.st-maintain, .pill.st-sent   { background: #f0ebff; color: #7c5cff; }
-.pill.st-done, .pill.st-paid       { background: var(--success-soft); color: var(--success-color); }
-.pill.st-hold                      { background: var(--warning-soft); color: var(--warning-color); }
-.pill.st-void                      { background: var(--danger-soft); color: var(--danger-color); }
-.pill.pr-high                      { background: var(--danger-soft); color: var(--danger-color); }
-.pill.pr-low                       { background: var(--bg-hover); color: var(--text-muted); }
 
 /* ---------- 工具栏 ---------- */
 .page-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
@@ -119,7 +100,6 @@ select.input { appearance: auto; }
 .ms-item .ms-t { flex: 1; min-width: 0; }
 .ms-item .ms-t.done { text-decoration: line-through; color: var(--text-muted); }
 .ms-dates { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-muted); }
-.ms-dates input { width: 130px; }
 
 /* ---------- 删除影响预览 ---------- */
 .impact-groups { display: flex; flex-direction: column; gap: 6px; }
@@ -127,26 +107,14 @@ select.input { appearance: auto; }
 .impact-row .pill { margin-left: auto; }
 .impact-none { font-size: 13px; color: var(--text-muted); }
 
-/* 空状态 */
-.page-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
-.page-empty p { margin: 0 0 16px; font-size: 13.5px; }
+/* 空状态（页面级已换 el-empty；卡片内纯文本 .empty 保留） */
 
-/* 时间线（沟通记录） */
-.timeline-log { list-style: none; margin: 0; padding: 0; }
-.timeline-log li { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border-light); }
-.tl-ico { flex: none; width: 26px; height: 26px; border-radius: 8px; background: var(--bg-hover); display: grid; place-items: center; color: var(--primary-color); }
-.tl-body { flex: 1; min-width: 0; }
-.tl-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+/* 沟通记录时间线（已换 el-timeline，保留内容行的字号样式） */
 .tl-content { font-size: 13px; margin-top: 3px; }
 .tl-next { font-size: 12px; color: var(--primary-color); margin-top: 3px; }
 
-/* ---------- 数据表格 ---------- */
-.table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--bg-card); border-radius: var(--radius-lg); overflow: hidden; }
-.table thead th { text-align: left; padding: 11px 14px; font-size: 12px; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-color); background: var(--bg-sidebar); white-space: nowrap; }
-.table tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border-light); vertical-align: middle; }
-.table tbody tr:hover { background: var(--bg-hover); }
-.table .num { text-align: right; font-variant-numeric: tabular-nums; }
-.table .right { text-align: right; }
+/* ---------- 数据表格（已换 el-table，保留单元格内嵌样式） ---------- */
+.num { text-align: right; font-variant-numeric: tabular-nums; }
 .who { display: flex; flex-direction: column; }
 .who b { font-size: 13px; }
 .who span { font-size: 11.5px; color: var(--text-muted); }
@@ -156,7 +124,6 @@ select.input { appearance: auto; }
 .late { color: var(--danger-color); font-weight: 600; }
 .row-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .pager { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 12.5px; color: var(--text-muted); }
-.pager .btn { height: 28px; font-size: 12px; }
 
 /* ---------- 图表（纯 CSS 柱状） ---------- */
 .bars { display: flex; align-items: flex-end; gap: 6px; height: 200px; padding: 8px 0; }
@@ -197,3 +164,16 @@ select.input { appearance: auto; }
 .markdown-body ul, .markdown-body ol { padding-left: 24px; }
 .markdown-body a { color: var(--primary-color); }
 .markdown-body img { max-width: 100%; }
+
+/* ---------- 工具台左侧工具列表：sticky + 限高独立滚动 ---------- */
+.tool-list {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  max-height: calc(100vh - 230px);
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+.tool-list::-webkit-scrollbar { width: 6px; }
+.tool-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }

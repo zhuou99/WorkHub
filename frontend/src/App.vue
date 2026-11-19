@@ -89,7 +89,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-if="booting" class="loading"><div class="spinner" /></div>
+  <div v-if="booting" v-loading="true" style="height: 100%" />
 
   <!-- 未登录：渲染登录页（无外壳） -->
   <RouterView v-else-if="!user" />

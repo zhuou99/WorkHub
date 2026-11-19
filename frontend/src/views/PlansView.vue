@@ -25,6 +25,11 @@ const edit = ref<PaymentPlan | null>(null)
 const PLAN_STATUS = { pending: '待收', paid: '已到账', skipped: '已免除' }
 const STATUS_FILTER = [{ value: 'all', text: '全部状态' }, ...Object.entries(PLAN_STATUS).map(([value, text]) => ({ value, text }))]
 
+/* 状态胶囊 → el-tag type 映射 */
+type TagType = 'info' | 'primary' | 'success' | 'warning' | 'danger'
+
+const PLAN_TAG_TYPE: Record<string, TagType> = { pending: 'info', paid: 'success', skipped: 'info' }
+
 function clientName(id: string | null): string {
   if (!id) return ''
   return clients.value.find((c) => c.id === id)?.name ?? ''
@@ -146,8 +151,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -156,7 +161,7 @@ onMounted(load)
         <div class="page-sub">把合同额拆成期次，哪天该收哪一笔、哪期拖了，一眼看清。</div>
       </div>
       <div class="page-actions">
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新建期次</button>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新建期次</el-button>
       </div>
     </div>
 
@@ -173,64 +178,74 @@ onMounted(load)
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索期次 / 项目 / 客户" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
+      <div class="search">
+        <el-input v-model="kw" placeholder="搜索期次 / 项目 / 客户">
+          <template #prefix><AppIcon name="search" :size="15" /></template>
+        </el-input>
       </div>
-      <select v-model="projectId" class="input" style="width: 140px"><option value="">全部项目</option><option v-for="p in projectFilter" :key="p.value" :value="p.value">{{ p.text }}</option></select>
-      <select v-model="status" class="input" style="width: 110px"><option v-for="o in STATUS_FILTER" :key="o.value" :value="o.value">{{ o.text }}</option></select>
+      <el-select :empty-values="[]" v-model="projectId" style="width: 140px"><el-option value="" label="全部项目" /><el-option v-for="p in projectFilter" :key="p.value" :value="p.value" :label="p.text" /></el-select>
+      <el-select v-model="status" style="width: 110px"><el-option v-for="o in STATUS_FILTER" :key="o.value" :value="o.value" :label="o.text" /></el-select>
     </div>
 
-    <div v-if="!shown.length" class="page-empty">
-      <p>{{ kw.trim() || status !== 'all' || projectId ? '没有符合条件的期次。' : '还没拆回款计划。选个项目，把合同额拆成「首款 → 验收款 → 尾款」。' }}</p>
-      <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新建期次</button>
-    </div>
+    <el-empty
+      v-if="!shown.length"
+      :description="kw.trim() || status !== 'all' || projectId ? '没有符合条件的期次。' : '还没拆回款计划。选个项目，把合同额拆成「首款 → 验收款 → 尾款」。'"
+    >
+      <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新建期次</el-button>
+    </el-empty>
 
-    <table v-else class="table">
-      <thead>
-        <tr><th>项目 / 期次</th><th>应收日</th><th class="right">金额</th><th class="right">占比</th><th>状态</th><th class="right">操作</th></tr>
-      </thead>
-      <tbody>
-        <tr v-for="p in shown" :key="p.id">
-          <td>
-            <div class="who">
-              <b>{{ projName(p.projectId) }} · 第 {{ p.seq }} 期 {{ p.title }}</b>
-              <span v-if="p.invoiceId">{{ invoiceLabel(p.invoiceId) }}</span>
-            </div>
-          </td>
-          <td><span :class="{ late: p.isOverdue }">{{ formatDate(p.dueDate) || '—' }}</span></td>
-          <td class="num"><b>{{ money(Number(p.amount)) }}</b></td>
-          <td class="num">{{ p.percentOf !== null ? p.percentOf + '%' : '—' }}</td>
-          <td><span class="pill" :class="'st-' + (p.status || 'pending')">{{ label(PLAN_STATUS, p.status, '待收') }}</span></td>
-          <td class="right"><div class="row-actions">
-            <button v-if="p.status !== 'paid'" class="btn" style="height: 26px; font-size: 12px; color: var(--success-color)" @click="mark(p, 'paid')"><AppIcon name="check" :size="13" /> 到账</button>
-            <button v-if="p.status === 'paid'" class="btn" style="height: 26px; font-size: 12px" @click="mark(p, 'pending')"><AppIcon name="refresh" :size="13" /> 退回</button>
-            <button class="btn" style="height: 26px; font-size: 12px" @click="openEdit(p)"><AppIcon name="edit" :size="13" /></button>
-            <button class="btn" style="height: 26px; font-size: 12px; color: var(--danger-color)" @click="remove(p)"><AppIcon name="trash" :size="13" /></button>
-          </div></td>
-        </tr>
-      </tbody>
-    </table>
+    <el-table v-else :data="shown">
+      <el-table-column label="项目 / 期次" min-width="200">
+        <template #default="{ row }">
+          <div class="who">
+            <b>{{ projName(row.projectId) }} · 第 {{ row.seq }} 期 {{ row.title }}</b>
+            <span v-if="row.invoiceId">{{ invoiceLabel(row.invoiceId) }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="应收日" min-width="100">
+        <template #default="{ row }"><span :class="{ late: row.isOverdue }">{{ formatDate(row.dueDate) || '—' }}</span></template>
+      </el-table-column>
+      <el-table-column label="金额" align="right" min-width="110">
+        <template #default="{ row }"><b>{{ money(Number(row.amount)) }}</b></template>
+      </el-table-column>
+      <el-table-column label="占比" align="right" width="80">
+        <template #default="{ row }">{{ row.percentOf !== null ? row.percentOf + '%' : '—' }}</template>
+      </el-table-column>
+      <el-table-column label="状态" width="90">
+        <template #default="{ row }"><el-tag size="small" :type="PLAN_TAG_TYPE[row.status || 'pending'] ?? 'info'">{{ label(PLAN_STATUS, row.status, '待收') }}</el-tag></template>
+      </el-table-column>
+      <el-table-column label="操作" align="right" width="210">
+        <template #default="{ row }">
+          <div class="row-actions">
+            <el-button v-if="row.status !== 'paid'" size="small" type="success" plain @click="mark(row as PaymentPlan, 'paid')"><AppIcon name="check" :size="13" /> 到账</el-button>
+            <el-button v-if="row.status === 'paid'" size="small" @click="mark(row as PaymentPlan, 'pending')"><AppIcon name="refresh" :size="13" /> 退回</el-button>
+            <el-button size="small" @click="openEdit(row as PaymentPlan)"><AppIcon name="edit" :size="13" /></el-button>
+            <el-button size="small" type="danger" plain @click="remove(row as PaymentPlan)"><AppIcon name="trash" :size="13" /></el-button>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
 
     <!-- 编辑弹窗 -->
     <Modal v-if="editing && edit" :title="isNew ? '新建期次' : '编辑期次'" icon="wallet" @close="editing = false">
       <div class="form-grid">
         <div class="field"><label>项目</label>
-          <select v-model="edit.projectId" class="input"><option :value="null">不挂项目</option><option v-for="p in projectOptions" :key="p.value" :value="p.value">{{ p.text }}</option></select>
+          <el-select :empty-values="[]" v-model="edit.projectId"><el-option :value="(null as any)" label="不挂项目" /><el-option v-for="p in projectOptions" :key="p.value" :value="p.value" :label="p.text" /></el-select>
         </div>
-        <div class="field"><label>第几期</label><input v-model.number="edit.seq" class="input" type="number" min="1" max="99" /></div>
-        <div class="field"><label>期次名称</label><input v-model="edit.title" class="input" maxlength="100" placeholder="首款 / 验收款 / 尾款" /></div>
-        <div class="field"><label>应收金额（元）</label><input v-model.number="edit.amount" class="input" type="number" min="0" /></div>
-        <div class="field"><label>应收日</label><input v-model="edit.dueDate" class="input" type="date" /></div>
-        <div class="field"><label>状态</label><select v-model="edit.status" class="input"><option v-for="o in Object.entries(PLAN_STATUS)" :key="o[0]" :value="o[0]">{{ o[1] }}</option></select></div>
+        <div class="field"><label>第几期</label><el-input-number v-model="edit.seq" :controls="false" :min="1" :max="99" style="width: 100%" /></div>
+        <div class="field"><label>期次名称</label><el-input v-model="edit.title" maxlength="100" placeholder="首款 / 验收款 / 尾款" /></div>
+        <div class="field"><label>应收金额（元）</label><el-input-number v-model="edit.amount" :controls="false" :min="0" style="width: 100%" /></div>
+        <div class="field"><label>应收日</label><el-date-picker v-model="edit.dueDate" type="date" value-format="YYYY-MM-DD" /></div>
+        <div class="field"><label>状态</label><el-select v-model="edit.status"><el-option v-for="o in Object.entries(PLAN_STATUS)" :key="o[0]" :value="o[0]" :label="o[1]" /></el-select></div>
         <div class="field full"><label>挂发票（可选）</label>
-          <select v-model="edit.invoiceId" class="input"><option :value="null">不挂发票</option><option v-for="iv in invoiceOptions" :key="iv.value" :value="iv.value">{{ iv.text }}</option></select>
+          <el-select :empty-values="[]" v-model="edit.invoiceId"><el-option :value="(null as any)" label="不挂发票" /><el-option v-for="iv in invoiceOptions" :key="iv.value" :value="iv.value" :label="iv.text" /></el-select>
         </div>
-        <div class="field full"><label>备注</label><input v-model="edit.note" class="input" maxlength="500" /></div>
+        <div class="field full"><label>备注</label><el-input v-model="edit.note" maxlength="500" /></div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button class="btn primary" @click="save"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button type="primary" @click="save"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
   </template>

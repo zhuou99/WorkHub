@@ -54,6 +54,12 @@ const COMM_TYPE_OPTIONS = [
   { value: 'other', text: '其他' },
 ]
 
+/* 状态胶囊 → el-tag type 映射（maintain/sent 另加 tag-purple 类） */
+type TagType = 'info' | 'primary' | 'success' | 'warning' | 'danger'
+
+const PROJ_TAG_TYPE: Record<string, TagType> = { talking: 'info', active: 'success', accept: 'primary', maintain: 'primary', done: 'success' }
+const IV_TAG_TYPE: Record<string, TagType> = { opened: 'primary', sent: 'primary', paid: 'success', void: 'danger' }
+
 function match(c: Client, k: string): boolean {
   if (!k.trim()) return true
   const needle = k.trim().toLowerCase()
@@ -189,8 +195,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -199,7 +205,7 @@ onMounted(load)
         <div class="page-sub">一人公司的客户台账：联系人、沟通留痕，项目与发票都挂在客户上，一处看全。</div>
       </div>
       <div class="page-actions">
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新增客户</button>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新增客户</el-button>
       </div>
     </div>
 
@@ -216,26 +222,29 @@ onMounted(load)
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索名称 / 联系人 / 电话 / 微信 / 标签" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
+      <div class="search">
+        <el-input v-model="kw" placeholder="搜索名称 / 联系人 / 电话 / 微信 / 标签">
+          <template #prefix><AppIcon name="search" :size="15" /></template>
+        </el-input>
       </div>
-      <select v-model="state" class="input" style="width: 120px">
-        <option v-for="o in STATE_OPTIONS" :key="o.value" :value="o.value">{{ o.text }}</option>
-      </select>
+      <el-select v-model="state" style="width: 120px">
+        <el-option v-for="o in STATE_OPTIONS" :key="o.value" :value="o.value" :label="o.text" />
+      </el-select>
     </div>
 
-    <div v-if="!shown.length" class="page-empty">
-      <p>{{ kw.trim() || state !== 'all' ? '没有符合条件的客户。' : '还没有客户。有了第一个客户，项目、发票、沟通记录才串得起来。' }}</p>
-      <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新增客户</button>
-    </div>
+    <el-empty
+      v-if="!shown.length"
+      :description="kw.trim() || state !== 'all' ? '没有符合条件的客户。' : '还没有客户。有了第一个客户，项目、发票、沟通记录才串得起来。'"
+    >
+      <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新增客户</el-button>
+    </el-empty>
 
     <div v-else class="card-grid">
       <div v-for="c in shown" :key="c.id" class="ent-card">
         <div class="ent-top">
           <b class="ent-name" @click="openView(c)">{{ c.name }}</b>
-          <span v-if="c.archived" class="pill st-hold">已归档</span>
-          <span class="pill st-talking">{{ label(SOURCE, c.source, '未知') }}</span>
+          <el-tag v-if="c.archived" size="small" type="warning">已归档</el-tag>
+          <el-tag size="small" type="info">{{ label(SOURCE, c.source, '未知') }}</el-tag>
         </div>
         <div v-if="c.contact || c.phone" class="ent-line"><AppIcon name="user" :size="12" /> {{ c.contact }}{{ c.phone ? ' · ' + c.phone : '' }}</div>
         <div v-if="c.wechat || c.email" class="ent-line"><AppIcon name="mail" :size="12" /> {{ c.wechat || c.email }}</div>
@@ -244,13 +253,13 @@ onMounted(load)
           <template v-else>还没有沟通记录</template>
         </div>
         <div v-if="tagList(c).length" class="ent-tags">
-          <span v-for="t in tagList(c)" :key="t" class="tag">{{ t }}</span>
+          <el-tag v-for="t in tagList(c)" :key="t" size="small" round effect="plain" type="info">{{ t }}</el-tag>
         </div>
         <div class="ent-acts">
-          <button class="btn" style="height: 28px; font-size: 12px" @click="openView(c)"><AppIcon name="folder" :size="13" /> 档案 · {{ projOf(c.id).length }}</button>
-          <button class="btn" style="height: 28px; font-size: 12px" @click="openView(c)"><AppIcon name="message-circle" :size="13" /> 记一笔</button>
-          <button class="btn" style="height: 28px; font-size: 12px" @click="openEdit(c)"><AppIcon name="edit" :size="13" /></button>
-          <button class="btn" style="height: 28px; font-size: 12px; color: var(--danger-color)" @click="openKill(c)"><AppIcon name="trash" :size="13" /></button>
+          <el-button size="small" @click="openView(c)"><AppIcon name="folder" :size="13" /> 档案 · {{ projOf(c.id).length }}</el-button>
+          <el-button size="small" @click="openView(c)"><AppIcon name="message-circle" :size="13" /> 记一笔</el-button>
+          <el-button size="small" @click="openEdit(c)"><AppIcon name="edit" :size="13" /></el-button>
+          <el-button size="small" type="danger" plain @click="openKill(c)"><AppIcon name="trash" :size="13" /></el-button>
         </div>
       </div>
     </div>
@@ -272,7 +281,7 @@ onMounted(load)
           <div class="sec">项目 {{ projOf(view.id).length }}</div>
           <div v-if="!projOf(view.id).length" class="muted" style="font-size: 13px">还没有项目。</div>
           <div v-for="p in projOf(view.id)" :key="p.id" class="rel">
-            <span class="pill" :class="'st-' + (p.status || 'talking')">{{ label(PROJECT_STATUS, p.status, '洽谈中') }}</span>
+            <el-tag size="small" :type="PROJ_TAG_TYPE[p.status || 'talking']" :class="{ 'tag-purple': p.status === 'maintain' }">{{ label(PROJECT_STATUS, p.status, '洽谈中') }}</el-tag>
             <span class="rel-t">{{ p.name }}</span>
             <span class="rel-a">{{ money(Number(p.amount)) }}</span>
           </div>
@@ -281,7 +290,7 @@ onMounted(load)
           <div class="sec">发票 {{ invoicesOf(view.id).length }}</div>
           <div v-if="!invoicesOf(view.id).length" class="muted" style="font-size: 13px">还没有开票记录。</div>
           <div v-for="iv in invoicesOf(view.id)" :key="iv.id" class="rel">
-            <span class="pill" :class="'st-' + (iv.status || 'opened')">{{ label(INVOICE_STATUS, iv.status, '已开票') }}</span>
+            <el-tag size="small" :type="IV_TAG_TYPE[iv.status || 'opened']" :class="{ 'tag-purple': iv.status === 'sent' }">{{ label(INVOICE_STATUS, iv.status, '已开票') }}</el-tag>
             <span class="rel-t">{{ iv.no || '未填票号' }} · {{ iv.issueDate ? iv.issueDate.slice(0, 10) : '未开票' }}</span>
             <span class="rel-a">{{ (Number(iv.due) || 0) > 0 ? '待收 ' + money(Number(iv.due)) : '已收满' }}</span>
           </div>
@@ -291,39 +300,36 @@ onMounted(load)
       <div class="sec">沟通记录</div>
       <div v-if="log" class="form-grid" style="margin-bottom: 14px">
         <div class="field">
-          <select v-model="log.type" class="input">
-            <option v-for="o in COMM_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.text }}</option>
-          </select>
+          <el-select v-model="log.type">
+            <el-option v-for="o in COMM_TYPE_OPTIONS" :key="o.value" :value="o.value" :label="o.text" />
+          </el-select>
         </div>
         <div class="field">
-          <input v-model="log.happenTime" class="input" type="datetime-local" />
+          <el-date-picker type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" v-model="log.happenTime" />
         </div>
         <div class="field full">
-          <textarea v-model="log.content" class="input" rows="2" maxlength="1000" placeholder="沟通内容" />
+          <el-input v-model="log.content" type="textarea" :rows="2" maxlength="1000" placeholder="沟通内容" />
         </div>
         <div class="field full">
-          <input v-model="log.next" class="input" maxlength="500" placeholder="下一步要做的事（可选）" />
+          <el-input v-model="log.next" maxlength="500" placeholder="下一步要做的事（可选）" />
         </div>
         <div class="field full" style="text-align: right">
-          <button class="btn primary" @click="saveLog"><AppIcon name="check" :size="14" /> 记一笔</button>
+          <el-button type="primary" @click="saveLog"><AppIcon name="check" :size="14" /> 记一笔</el-button>
         </div>
       </div>
-      <ul class="timeline-log">
-        <li v-for="l in logsShown(view.id)" :key="l.id">
-          <div class="tl-ico"><AppIcon :name="l.type === 'phone' ? 'phone' : l.type === 'meet' ? 'users' : l.type === 'mail' ? 'mail' : 'message-circle'" :size="13" /></div>
-          <div class="tl-body">
-            <div class="tl-head">
-              <span>{{ formatDateTime(l.happenTime) }}</span>
-              <span class="pill st-talking">{{ label(COMM_TYPE, l.type, '微信') }}</span>
-              <button class="icon-btn" type="button" style="margin-left: auto" @click="deleteLog(l)"><AppIcon name="trash" :size="13" /></button>
-            </div>
-            <div class="tl-content">{{ l.content }}</div>
-            <div v-if="l.next" class="tl-next">下一步：{{ l.next }}</div>
+      <el-timeline>
+        <el-timeline-item v-for="l in logsShown(view.id)" :key="l.id" :timestamp="formatDateTime(l.happenTime)">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <AppIcon :name="l.type === 'phone' ? 'phone' : l.type === 'meet' ? 'users' : l.type === 'mail' ? 'mail' : 'message-circle'" :size="13" />
+            <el-tag size="small" type="info">{{ label(COMM_TYPE, l.type, '微信') }}</el-tag>
+            <el-button size="small" text type="danger" style="margin-left: auto" @click="deleteLog(l)"><AppIcon name="trash" :size="13" /></el-button>
           </div>
-        </li>
-      </ul>
+          <div class="tl-content">{{ l.content }}</div>
+          <div v-if="l.next" class="tl-next">下一步：{{ l.next }}</div>
+        </el-timeline-item>
+      </el-timeline>
       <div v-if="logsOf(view.id).length > logLimit" style="text-align: center; margin-top: 10px">
-        <button class="btn" @click="logLimit += 20">更多记录</button>
+        <el-button @click="logLimit += 20">更多记录</el-button>
       </div>
     </Modal>
 
@@ -332,23 +338,23 @@ onMounted(load)
       <div class="form-grid">
         <div class="field full">
           <label>客户名称 <span class="req">*</span></label>
-          <input v-model="edit.name" class="input" maxlength="100" />
+          <el-input v-model="edit.name" maxlength="100" />
         </div>
-        <div class="field"><label>联系人</label><input v-model="edit.contact" class="input" maxlength="60" /></div>
-        <div class="field"><label>电话</label><input v-model="edit.phone" class="input" maxlength="30" /></div>
-        <div class="field"><label>微信</label><input v-model="edit.wechat" class="input" maxlength="50" /></div>
-        <div class="field"><label>邮箱</label><input v-model="edit.email" class="input" maxlength="80" /></div>
+        <div class="field"><label>联系人</label><el-input v-model="edit.contact" maxlength="60" /></div>
+        <div class="field"><label>电话</label><el-input v-model="edit.phone" maxlength="30" /></div>
+        <div class="field"><label>微信</label><el-input v-model="edit.wechat" maxlength="50" /></div>
+        <div class="field"><label>邮箱</label><el-input v-model="edit.email" maxlength="80" /></div>
         <div class="field"><label>来源</label>
-          <select v-model="edit.source" class="input">
-            <option v-for="o in SOURCE_OPTIONS" :key="o.value" :value="o.value">{{ o.text }}</option>
-          </select>
+          <el-select :empty-values="[]" v-model="edit.source">
+            <el-option v-for="o in SOURCE_OPTIONS" :key="o.value" :value="o.value" :label="o.text" />
+          </el-select>
         </div>
-        <div class="field"><label>标签</label><input v-model="edit.tags" class="input" maxlength="200" placeholder="逗号分隔" /></div>
-        <div class="field full"><label>备注</label><textarea v-model="edit.note" class="input" rows="3" maxlength="1000" /></div>
+        <div class="field"><label>标签</label><el-input v-model="edit.tags" maxlength="200" placeholder="逗号分隔" /></div>
+        <div class="field full"><label>备注</label><el-input v-model="edit.note" type="textarea" :rows="3" maxlength="1000" /></div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button class="btn primary" @click="save"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button type="primary" @click="save"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
 
@@ -359,23 +365,21 @@ onMounted(load)
         <div v-if="impact && impact.groups.length" class="impact-groups">
           <div v-for="g in impact.groups" :key="g.label" class="impact-row">
             <span>{{ g.label }}</span>
-            <span class="pill" :class="g.mode === 'cascade' ? 'st-void' : 'st-talking'">{{ g.mode === 'cascade' ? '跟着删' : '可解绑保留' }}</span>
+            <el-tag size="small" :type="g.mode === 'cascade' ? 'danger' : 'info'">{{ g.mode === 'cascade' ? '跟着删' : '可解绑保留' }}</el-tag>
             <span class="muted">{{ g.count }}</span>
           </div>
         </div>
         <div v-else class="impact-none">这个客户下面没有挂着项目、发票或沟通记录，删了不留尾巴。</div>
       </div>
       <div class="field" style="margin-bottom: 12px">
-        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500">
-          <input v-model="killDetach" type="checkbox" /> 解绑并保留项目 / 发票（否则原样保留，显示「客户已删除」）
-        </label>
+        <el-checkbox v-model="killDetach">解绑并保留项目 / 发票（否则原样保留，显示「客户已删除」）</el-checkbox>
       </div>
       <template #footer>
-        <button class="btn" @click="killing = false">取消</button>
-        <button class="btn" :disabled="killBusy" @click="doArchive"><AppIcon name="folder" :size="14" /> 归档（推荐）</button>
-        <button class="btn" style="background: var(--danger-color); border-color: var(--danger-color); color: #fff" :disabled="killBusy" @click="doDelete">
+        <el-button @click="killing = false">取消</el-button>
+        <el-button :disabled="killBusy" @click="doArchive"><AppIcon name="folder" :size="14" /> 归档（推荐）</el-button>
+        <el-button type="danger" :disabled="killBusy" @click="doDelete">
           <AppIcon name="trash" :size="14" /> 删除
-        </button>
+        </el-button>
       </template>
     </Modal>
   </template>

@@ -85,8 +85,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -95,65 +95,68 @@ onMounted(load)
         <div class="page-sub">Markdown 笔记与灵感收件箱：每页 20 条，点击标题进入编辑。</div>
       </div>
       <div class="page-actions">
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新建笔记</button>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 新建笔记</el-button>
       </div>
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索标题 / 内容 / 标签" @keyup.enter="applySearch" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
+      <div class="search">
+        <el-input v-model="kw" placeholder="搜索标题 / 内容 / 标签" @keyup.enter="applySearch">
+          <template #prefix><AppIcon name="search" :size="15" /></template>
+        </el-input>
       </div>
-      <button class="btn" @click="applySearch"><AppIcon name="search" :size="13" /> 查询</button>
-      <button class="btn" @click="clearSearch">清除</button>
+      <el-button @click="applySearch"><AppIcon name="search" :size="13" /> 查询</el-button>
+      <el-button @click="clearSearch">清除</el-button>
       <div class="quick" style="flex: 1 1 300px">
         <div class="quick-in">
-          <AppIcon name="zap" :size="15" />
-          <input v-model="quick" class="input" placeholder="灵感收件箱：想到什么先记一句，回车入库" @keyup.enter="quickAdd" />
+          <el-input v-model="quick" placeholder="灵感收件箱：想到什么先记一句，回车入库" @keyup.enter="quickAdd">
+            <template #prefix><AppIcon name="zap" :size="15" /></template>
+          </el-input>
         </div>
-        <button class="btn" :disabled="adding || !quick.trim()" @click="quickAdd"><AppIcon name="plus" :size="13" /> 记下</button>
+        <el-button :disabled="adding || !quick.trim()" @click="quickAdd"><AppIcon name="plus" :size="13" /> 记下</el-button>
       </div>
     </div>
 
-    <div v-if="!items.length" class="page-empty">
-      <p>{{ keyword ? '没有匹配的笔记。' : '还没有笔记，用上面的收件箱记第一条。' }}</p>
-    </div>
+    <el-empty v-if="!items.length" :description="keyword ? '没有匹配的笔记。' : '还没有笔记，用上面的收件箱记第一条。'" />
 
-    <table v-else class="table">
-      <thead><tr><th>标题 / 正文预览</th><th>标签</th><th>置顶</th><th>创建时间</th><th class="right">操作</th></tr></thead>
-      <tbody>
-        <tr v-for="note in items" :key="note.id">
-          <td>
-            <b style="cursor: pointer" @click="openEdit(note)">{{ note.title || '未命名' }}</b>
-            <div class="tax">{{ preview(note) }}</div>
-          </td>
-          <td>{{ note.tags || '—' }}</td>
-          <td>{{ note.pinned ? '置顶' : '—' }}</td>
-          <td>{{ formatDateTime(note.createTime) }}</td>
-          <td class="right"><div class="row-actions">
-            <button class="btn" style="height: 26px; font-size: 12px" @click="openEdit(note)"><AppIcon name="edit" :size="13" /></button>
-            <button class="btn" style="height: 26px; font-size: 12px; color: var(--danger-color)" @click="remove(note)"><AppIcon name="trash" :size="13" /></button>
-          </div></td>
-        </tr>
-      </tbody>
-    </table>
+    <el-table v-else :data="items">
+      <el-table-column label="标题 / 正文预览">
+        <template #default="{ row }">
+          <b style="cursor: pointer" @click="openEdit(row as Note)">{{ row.title || '未命名' }}</b>
+          <div class="tax">{{ preview(row as Note) }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column label="标签">
+        <template #default="{ row }">{{ row.tags || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="置顶">
+        <template #default="{ row }">{{ row.pinned ? '置顶' : '—' }}</template>
+      </el-table-column>
+      <el-table-column label="创建时间">
+        <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" align="right">
+        <template #default="{ row }">
+          <div class="row-actions">
+            <el-button size="small" @click="openEdit(row as Note)"><AppIcon name="edit" :size="13" /></el-button>
+            <el-button size="small" type="danger" plain @click="remove(row as Note)"><AppIcon name="trash" :size="13" /></el-button>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
 
-    <div v-if="pageCount > 1" class="pager">
-      <button class="btn" :disabled="page <= 1" @click="goPage(page - 1)"><AppIcon name="chevron-left" :size="13" /></button>
-      <span>{{ page }} / {{ pageCount }}（共 {{ total }} 条）</span>
-      <button class="btn" :disabled="page >= pageCount" @click="goPage(page + 1)"><AppIcon name="chevron-right" :size="13" /></button>
-    </div>
+    <el-pagination v-if="pageCount > 1" layout="prev, pager, next" :total="total" :page-size="PAGE_SIZE" :current-page="page" @current-change="goPage" />
 
     <Modal v-if="editing && edit" :title="isNew ? '新建笔记' : '编辑笔记'" icon="notepad" wide @close="editing = false">
       <div class="form-grid">
-        <div class="field full"><label>标题 <span class="req">*</span></label><input v-model="edit.title" class="input" maxlength="300" /></div>
-        <div class="field full"><label>正文（Markdown）</label><textarea v-model="edit.content" class="input" rows="14" placeholder="支持 Markdown" /></div>
-        <div class="field"><label>标签</label><input v-model="edit.tags" class="input" maxlength="300" placeholder="逗号分隔" /></div>
-        <div class="field" style="align-self: end"><label style="display: flex; align-items: center; gap: 8px; font-weight: 500"><input v-model="edit.pinned" type="checkbox" /> 置顶</label></div>
+        <div class="field full"><label>标题 <span class="req">*</span></label><el-input v-model="edit.title" maxlength="300" /></div>
+        <div class="field full"><label>正文（Markdown）</label><el-input v-model="edit.content" type="textarea" :rows="14" placeholder="支持 Markdown" /></div>
+        <div class="field"><label>标签</label><el-input v-model="edit.tags" maxlength="300" placeholder="逗号分隔" /></div>
+        <div class="field" style="align-self: end"><label style="display: flex; align-items: center; gap: 8px; font-weight: 500"><el-checkbox v-model="edit.pinned" /> 置顶</label></div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button class="btn primary" @click="save"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button type="primary" @click="save"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
   </template>

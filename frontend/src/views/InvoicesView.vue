@@ -31,6 +31,11 @@ const STATUS_FILTER = [{ value: 'all', text: '全部状态' }, ...Object.entries
 const TYPE_OPTIONS = [{ value: 'general', text: '普票' }, { value: 'special', text: '专票' }, { value: 'agent', text: '个人代开' }]
 const METHOD_OPTIONS = [{ value: 'bank', text: '银行转账' }, { value: 'wechat', text: '微信' }, { value: 'alipay', text: '支付宝' }, { value: 'cash', text: '现金' }, { value: 'other', text: '其他' }]
 
+/* 状态胶囊 → el-tag type 映射（sent 另加 tag-purple 类） */
+type TagType = 'info' | 'primary' | 'success' | 'warning' | 'danger'
+
+const IV_TAG_TYPE: Record<string, TagType> = { opened: 'primary', sent: 'primary', paid: 'success', void: 'danger' }
+
 function match(iv: Invoice, k: string): boolean {
   if (!k.trim()) return true
   const needle = k.trim().toLowerCase()
@@ -109,7 +114,7 @@ function onProjectChanged(projectId: string) {
   if (!edit.value) return
   edit.value.projectId = projectId || null
   const p = projects.value.find((x) => x.id === projectId)
-  if (p && !edit.value.clientId) edit.value.clientId = p.clientId ?? ''
+  if (p && !edit.value.clientId) edit.value.clientId = p.clientId ?? 'primary'
 }
 
 async function save() {
@@ -151,8 +156,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -161,7 +166,7 @@ onMounted(load)
         <div class="page-sub">开票、回款、逾期一条线看完；金额以「价税合计」为准，已收由回款登记汇总。</div>
       </div>
       <div class="page-actions">
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 开票登记</button>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 开票登记</el-button>
       </div>
     </div>
 
@@ -178,92 +183,107 @@ onMounted(load)
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索票号 / 客户 / 项目 / 备注" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
+      <div class="search">
+        <el-input v-model="kw" placeholder="搜索票号 / 客户 / 项目 / 备注">
+          <template #prefix><AppIcon name="search" :size="15" /></template>
+        </el-input>
       </div>
-      <select v-model="status" class="input" style="width: 110px"><option v-for="o in STATUS_FILTER" :key="o.value" :value="o.value">{{ o.text }}</option></select>
-      <select v-model="clientId" class="input" style="width: 120px"><option value="">全部客户</option><option v-for="c in clientFilter" :key="c.value" :value="c.value">{{ c.text }}</option></select>
-      <button class="btn" :class="{ primary: tag === 'overdue' }" @click="tag = tag === 'overdue' ? '' : 'overdue'"><AppIcon name="alert-circle" :size="13" /> 只看逾期</button>
-      <button class="btn" :class="{ primary: tag === 'due' }" @click="tag = tag === 'due' ? '' : 'due'"><AppIcon name="wallet" :size="13" /> 只看未收满</button>
+      <el-select v-model="status" style="width: 110px"><el-option v-for="o in STATUS_FILTER" :key="o.value" :value="o.value" :label="o.text" /></el-select>
+      <el-select :empty-values="[]" v-model="clientId" style="width: 120px"><el-option value="" label="全部客户" /><el-option v-for="c in clientFilter" :key="c.value" :value="c.value" :label="c.text" /></el-select>
+      <el-button :type="tag === 'overdue' ? 'primary' : ''" @click="tag = tag === 'overdue' ? '' : 'overdue'"><AppIcon name="alert-circle" :size="13" /> 只看逾期</el-button>
+      <el-button :type="tag === 'due' ? 'primary' : ''" @click="tag = tag === 'due' ? '' : 'due'"><AppIcon name="wallet" :size="13" /> 只看未收满</el-button>
     </div>
 
-    <div v-if="!shown.length" class="page-empty">
-      <p>{{ kw.trim() || status !== 'all' || clientId || tag ? '没有符合条件的发票。' : '还没有开票记录。' }}</p>
-      <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 开票登记</button>
-    </div>
+    <el-empty
+      v-if="!shown.length"
+      :description="kw.trim() || status !== 'all' || clientId || tag ? '没有符合条件的发票。' : '还没有开票记录。'"
+    >
+      <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 开票登记</el-button>
+    </el-empty>
 
-    <table v-else class="table">
-      <thead>
-        <tr>
-          <th>客户 / 项目</th><th>票号</th><th>类型</th><th class="right">金额</th>
-          <th>开票日</th><th>回款期限</th><th class="right">已收</th><th class="right">待收</th><th>状态</th><th class="right">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="iv in shown" :key="iv.id">
-          <td><div class="who"><b>{{ iv.clientName }}</b><span>{{ iv.projectName }}</span></div></td>
-          <td>{{ iv.no || '未填' }}</td>
-          <td>{{ iv.type === 'special' ? '专票' : iv.type === 'agent' ? '个人代开' : '普票' }}</td>
-          <td class="num"><b>{{ money(Number(iv.amount)) }}</b><div class="tax">{{ money(Number(iv.tax)) }} 税</div></td>
-          <td>{{ formatDate(iv.issueDate) || '—' }}</td>
-          <td><span :class="{ late: iv.isOverdue }">{{ formatDate(iv.expectDate) || '—' }}</span></td>
-          <td class="num">{{ money(Number(iv.paid)) }}</td>
-          <td class="num"><b :class="Number(iv.due) > 0 ? 'due' : 'ok'">{{ money(Number(iv.due)) }}</b></td>
-          <td>
-            <span class="pill" :class="'st-' + (iv.status || 'opened')">{{ label(INVOICE_STATUS, iv.status, '已开票') }}</span>
-            <span v-if="iv.isOverdue" class="flag danger" style="margin-left: 4px">逾期</span>
-          </td>
-          <td class="right"><div class="row-actions">
-            <button class="btn" style="height: 26px; font-size: 12px" @click="openPay(iv)"><AppIcon name="wallet" :size="13" /> 回款</button>
-            <button class="btn" style="height: 26px; font-size: 12px" @click="openEdit(iv)"><AppIcon name="edit" :size="13" /></button>
-            <button class="btn" style="height: 26px; font-size: 12px; color: var(--danger-color)" @click="remove(iv)"><AppIcon name="trash" :size="13" /></button>
-          </div></td>
-        </tr>
-      </tbody>
-    </table>
+    <el-table v-else :data="shown">
+      <el-table-column label="客户 / 项目" min-width="160">
+        <template #default="{ row }"><div class="who"><b>{{ row.clientName }}</b><span>{{ row.projectName }}</span></div></template>
+      </el-table-column>
+      <el-table-column label="票号" min-width="100">
+        <template #default="{ row }">{{ row.no || '未填' }}</template>
+      </el-table-column>
+      <el-table-column label="类型" width="90">
+        <template #default="{ row }">{{ row.type === 'special' ? '专票' : row.type === 'agent' ? '个人代开' : '普票' }}</template>
+      </el-table-column>
+      <el-table-column label="金额" align="right" min-width="110">
+        <template #default="{ row }"><b>{{ money(Number(row.amount)) }}</b><div class="tax">{{ money(Number(row.tax)) }} 税</div></template>
+      </el-table-column>
+      <el-table-column label="开票日" min-width="100">
+        <template #default="{ row }">{{ formatDate(row.issueDate) || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="回款期限" min-width="100">
+        <template #default="{ row }"><span :class="{ late: row.isOverdue }">{{ formatDate(row.expectDate) || '—' }}</span></template>
+      </el-table-column>
+      <el-table-column label="已收" align="right" min-width="90">
+        <template #default="{ row }">{{ money(Number(row.paid)) }}</template>
+      </el-table-column>
+      <el-table-column label="待收" align="right" min-width="90">
+        <template #default="{ row }"><b :class="Number(row.due) > 0 ? 'due' : 'ok'">{{ money(Number(row.due)) }}</b></template>
+      </el-table-column>
+      <el-table-column label="状态" width="110">
+        <template #default="{ row }">
+          <el-tag size="small" :type="IV_TAG_TYPE[row.status || 'opened'] ?? 'primary'" :class="{ 'tag-purple': (row.status || 'opened') === 'sent' }">{{ label(INVOICE_STATUS, row.status, '已开票') }}</el-tag>
+          <span v-if="row.isOverdue" class="flag danger" style="margin-left: 4px">逾期</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" align="right" width="190">
+        <template #default="{ row }">
+          <div class="row-actions">
+            <el-button size="small" @click="openPay(row as Invoice)"><AppIcon name="wallet" :size="13" /> 回款</el-button>
+            <el-button size="small" @click="openEdit(row as Invoice)"><AppIcon name="edit" :size="13" /></el-button>
+            <el-button size="small" type="danger" plain @click="remove(row as Invoice)"><AppIcon name="trash" :size="13" /></el-button>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
 
     <!-- 编辑弹窗 -->
     <Modal v-if="editing && edit" :title="isNew ? '开票登记' : '编辑发票'" icon="receipt" @close="editing = false">
       <div class="form-grid">
         <div class="field"><label>客户 <span class="req">*</span></label>
-          <select v-model="edit.clientId" class="input"><option value="">选客户</option><option v-for="c in clientOptions" :key="c.value" :value="c.value">{{ c.text }}</option></select>
+          <el-select :empty-values="[]" v-model="edit.clientId"><el-option value="" label="选客户" /><el-option v-for="c in clientOptions" :key="c.value" :value="c.value" :label="c.text" /></el-select>
         </div>
         <div class="field"><label>项目</label>
-          <select :value="edit.projectId" class="input" @change="onProjectChanged(($event.target as HTMLSelectElement).value)"><option value="">不挂项目</option><option v-for="p in projectOptions" :key="p.value" :value="p.value">{{ p.text }}</option></select>
+          <el-select :empty-values="[]" :model-value="edit.projectId" @change="onProjectChanged"><el-option value="" label="不挂项目" /><el-option v-for="p in projectOptions" :key="p.value" :value="p.value" :label="p.text" /></el-select>
         </div>
-        <div class="field"><label>发票号</label><input v-model="edit.no" class="input" maxlength="50" placeholder="可后补" /></div>
-        <div class="field"><label>类型</label><select v-model="edit.type" class="input"><option v-for="o in TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.text }}</option></select></div>
-        <div class="field"><label>价税合计（元）</label><input v-model.number="edit.amount" class="input" type="number" min="0" /></div>
-        <div class="field"><label>税率（%）</label><input v-model.number="edit.taxRate" class="input" type="number" min="0" /></div>
-        <div class="field"><label>开票日</label><input v-model="edit.issueDate" class="input" type="date" /></div>
-        <div class="field"><label>回款期限</label><input v-model="edit.expectDate" class="input" type="date" /></div>
-        <div class="field"><label>状态</label><select v-model="edit.status" class="input"><option v-for="o in Object.entries(INVOICE_STATUS)" :key="o[0]" :value="o[0]">{{ o[1] }}</option></select></div>
-        <div class="field"><label>备注</label><input v-model="edit.note" class="input" maxlength="300" /></div>
+        <div class="field"><label>发票号</label><el-input v-model="edit.no" maxlength="50" placeholder="可后补" /></div>
+        <div class="field"><label>类型</label><el-select v-model="edit.type"><el-option v-for="o in TYPE_OPTIONS" :key="o.value" :value="o.value" :label="o.text" /></el-select></div>
+        <div class="field"><label>价税合计（元）</label><el-input-number v-model="edit.amount" :controls="false" :min="0" style="width: 100%" /></div>
+        <div class="field"><label>税率（%）</label><el-input-number v-model="edit.taxRate" :controls="false" :min="0" style="width: 100%" /></div>
+        <div class="field"><label>开票日</label><el-date-picker v-model="edit.issueDate" type="date" value-format="YYYY-MM-DD" /></div>
+        <div class="field"><label>回款期限</label><el-date-picker v-model="edit.expectDate" type="date" value-format="YYYY-MM-DD" /></div>
+        <div class="field"><label>状态</label><el-select v-model="edit.status"><el-option v-for="o in Object.entries(INVOICE_STATUS)" :key="o[0]" :value="o[0]" :label="o[1]" /></el-select></div>
+        <div class="field"><label>备注</label><el-input v-model="edit.note" maxlength="300" /></div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button class="btn primary" @click="save"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button type="primary" @click="save"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
 
     <!-- 回款弹窗 -->
     <Modal v-if="paying && payOf && pay" :title="'记一笔回款 · ' + payOf.clientName" icon="wallet" @close="paying = false">
       <div class="form-grid">
-        <div class="field"><label>到账金额</label><input v-model.number="pay.amount" class="input" type="number" min="0" /></div>
-        <div class="field"><label>方式</label><select v-model="pay.method" class="input"><option v-for="o in METHOD_OPTIONS" :key="o.value" :value="o.value">{{ o.text }}</option></select></div>
-        <div class="field"><label>到账日</label><input v-model="payDate" class="input" type="date" /></div>
-        <div class="field"><label>备注</label><input v-model="pay.note" class="input" maxlength="300" /></div>
+        <div class="field"><label>到账金额</label><el-input-number v-model="pay.amount" :controls="false" :min="0" style="width: 100%" /></div>
+        <div class="field"><label>方式</label><el-select v-model="pay.method"><el-option v-for="o in METHOD_OPTIONS" :key="o.value" :value="o.value" :label="o.text" /></el-select></div>
+        <div class="field"><label>到账日</label><el-date-picker v-model="payDate" type="date" value-format="YYYY-MM-DD" /></div>
+        <div class="field"><label>备注</label><el-input v-model="pay.note" maxlength="300" /></div>
       </div>
       <div v-if="paysOf(payOf.id).length" class="sec">已记回款</div>
       <div v-for="p in paysOf(payOf.id)" :key="p.id" class="rel">
         <span class="rel-t">{{ formatMd(p.payDate) }} · {{ label({ bank: '银行转账', wechat: '微信', alipay: '支付宝', cash: '现金', other: '其他' }, p.method, '银行转账') }}</span>
         <span class="rel-a">{{ money(Number(p.amount)) }}</span>
-        <button class="icon-btn" type="button" @click="deletePayment(p)"><AppIcon name="trash" :size="13" /></button>
+        <el-button text class="icon-btn" @click="deletePayment(p)"><AppIcon name="trash" :size="13" /></el-button>
       </div>
       <template #footer>
-        <button class="btn" @click="paying = false">取消</button>
-        <button class="btn primary" @click="addPayment"><AppIcon name="check" :size="14" /> 记到账</button>
+        <el-button @click="paying = false">取消</el-button>
+        <el-button type="primary" @click="addPayment"><AppIcon name="check" :size="14" /> 记到账</el-button>
       </template>
     </Modal>
   </template>

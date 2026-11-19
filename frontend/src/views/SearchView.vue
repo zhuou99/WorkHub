@@ -66,12 +66,11 @@ onMounted(loadIndex)
   </div>
 
   <div class="page-toolbar" style="margin-bottom: 14px">
-    <div class="search" style="position: relative; flex: 1 1 360px">
-      <input v-model="kw" class="input" style="padding-left: 36px; height: 40px" placeholder="搜索内容…（回车）" @keyup.enter="search" />
-      <AppIcon name="search" :size="16" style="position: absolute; left: 12px; top: 12px; color: var(--text-muted)" />
-    </div>
-    <button class="btn primary" :disabled="busy" @click="search">搜索</button>
-    <button class="btn" :disabled="busy" @click="rebuild"><AppIcon name="refresh" :size="14" /> 重建索引</button>
+    <el-input v-model="kw" placeholder="搜索内容…（回车）" style="flex: 1 1 360px; height: 40px" @keyup.enter="search">
+      <template #prefix><AppIcon name="search" :size="16" /></template>
+    </el-input>
+    <el-button type="primary" :disabled="busy" @click="search">搜索</el-button>
+    <el-button :disabled="busy" @click="rebuild"><AppIcon name="refresh" :size="14" /> 重建索引</el-button>
   </div>
 
   <div v-if="index" class="muted" style="font-size: 12px; margin-bottom: 14px">
@@ -80,26 +79,22 @@ onMounted(loadIndex)
     · 引擎 {{ index.engine }}
   </div>
 
-  <div v-if="!searched" class="page-empty">
-    <p>输入关键词开始搜索。新写的内容存下就自动进索引，只有索引和源对不上时才需要重建。</p>
-  </div>
+  <el-empty v-if="!searched" description="输入关键词开始搜索。新写的内容存下就自动进索引，只有索引和源对不上时才需要重建。" />
 
   <template v-else>
     <div class="page-toolbar" style="margin-bottom: 12px">
-      <button class="btn" :class="{ primary: kind === '' }" @click="pick('')">全部</button>
-      <button v-for="(name, k) in KIND_NAMES" :key="k" class="btn" :class="{ primary: kind === k }" @click="pick(k)">
+      <el-button :type="kind === '' ? 'primary' : ''" @click="pick('')">全部</el-button>
+      <el-button v-for="(name, k) in KIND_NAMES" :key="k" :type="kind === k ? 'primary' : ''" @click="pick(k)">
         {{ name }}{{ kinds[k] ? ` (${kinds[k]})` : '' }}
-      </button>
+      </el-button>
       <span v-if="engine" class="muted" style="font-size: 12px; margin-left: auto">{{ engine }}</span>
     </div>
 
-    <div v-if="!hits.length" class="page-empty">
-      <p>没有搜到「{{ kw }}」。可以换个说法、少打几个字。</p>
-    </div>
+    <el-empty v-if="!hits.length" :description="'没有搜到「' + kw + '」。可以换个说法、少打几个字。'" />
 
     <div v-else class="card" style="padding: 0; overflow: hidden">
       <div v-for="hit in hits" :key="hit.id + hit.kind" class="rel" style="padding: 13px 16px; cursor: pointer; border-bottom: 1px solid var(--border-light)" @click="go(hit)">
-        <span class="pill st-talking">{{ KIND_NAMES[hit.kind] || hit.kind }}</span>
+        <el-tag size="small" type="info">{{ KIND_NAMES[hit.kind] || hit.kind }}</el-tag>
         <div style="flex: 1; min-width: 0">
           <div style="font-weight: 600; font-size: 13.5px">
             <template v-for="(part, i) in hit.titleParts" :key="i">

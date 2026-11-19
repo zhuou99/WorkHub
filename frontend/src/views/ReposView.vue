@@ -114,8 +114,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -124,8 +124,8 @@ onMounted(load)
         <div class="page-sub">GitHub 仓库镜像：拉 Star / Fork / Issue 与最近发版，Token 加密存本机。</div>
       </div>
       <div class="page-actions">
-        <button class="btn" :disabled="busy || !repos.length" @click="syncAll"><AppIcon name="refresh" :size="14" /> 同步全部</button>
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 添加仓库</button>
+        <el-button :disabled="busy || !repos.length" @click="syncAll"><AppIcon name="refresh" :size="14" /> 同步全部</el-button>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 添加仓库</el-button>
       </div>
     </div>
 
@@ -142,22 +142,19 @@ onMounted(load)
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索 owner / 仓库名 / 描述 / 备注" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
-      </div>
+      <el-input v-model="kw" placeholder="搜索 owner / 仓库名 / 描述 / 备注">
+        <template #prefix><AppIcon name="search" :size="15" /></template>
+      </el-input>
       <span v-if="!hasToken" class="muted" style="font-size: 12px">未配 GitHub Token，走匿名额度（60 次/小时）</span>
     </div>
 
-    <div v-if="!shown.length" class="page-empty">
-      <p>还没有镜像仓库。填 owner/name 添加一个，点「同步」拉最新数据。</p>
-    </div>
+    <el-empty v-if="!shown.length" description="还没有镜像仓库。填 owner/name 添加一个，点「同步」拉最新数据。" />
 
     <div v-else class="card-grid">
       <div v-for="r in shown" :key="r.id" class="ent-card">
         <div class="ent-top">
           <b class="ent-name">{{ r.owner }}/{{ r.name }}</b>
-          <span v-if="r.language" class="pill st-talking">{{ r.language }}</span>
+          <el-tag v-if="r.language" size="small" type="info">{{ r.language }}</el-tag>
         </div>
         <div v-if="r.description" class="ent-note">{{ r.description }}</div>
         <div class="ent-meta">
@@ -172,44 +169,44 @@ onMounted(load)
           <span v-for="p in plansOf(r.id).filter((x) => !x.released)" :key="p.id" class="flag warn">{{ p.tag }} 待发</span>
         </div>
         <div class="ent-acts">
-          <button class="btn" style="height: 28px; font-size: 12px" @click="openPlans(r)"><AppIcon name="calendar-clock" :size="13" /> 计划</button>
-          <button class="btn" style="height: 28px; font-size: 12px" :disabled="busy" @click="syncOne(r)"><AppIcon name="refresh" :size="13" /> 同步</button>
-          <button class="btn" style="height: 28px; font-size: 12px" @click="openEdit(r)"><AppIcon name="edit" :size="13" /></button>
-          <button class="btn" style="height: 28px; font-size: 12px; color: var(--danger-color)" @click="remove(r)"><AppIcon name="trash" :size="13" /></button>
+          <el-button size="small" @click="openPlans(r)"><AppIcon name="calendar-clock" :size="13" /> 计划</el-button>
+          <el-button size="small" :disabled="busy" @click="syncOne(r)"><AppIcon name="refresh" :size="13" /> 同步</el-button>
+          <el-button size="small" @click="openEdit(r)"><AppIcon name="edit" :size="13" /></el-button>
+          <el-button size="small" type="danger" plain @click="remove(r)"><AppIcon name="trash" :size="13" /></el-button>
         </div>
       </div>
     </div>
 
     <Modal v-if="editing && edit" :title="isNew ? '添加仓库' : '编辑仓库'" icon="package" @close="editing = false">
       <div class="form-grid">
-        <div class="field"><label>Owner <span class="req">*</span></label><input v-model="edit.owner" class="input" maxlength="100" placeholder="knownliu" /></div>
-        <div class="field"><label>仓库名 <span class="req">*</span></label><input v-model="edit.name" class="input" maxlength="100" placeholder="eims" /></div>
-        <div class="field full"><label>备注</label><input v-model="edit.note" class="input" maxlength="1000" /></div>
+        <div class="field"><label>Owner <span class="req">*</span></label><el-input v-model="edit.owner" maxlength="100" placeholder="knownliu" /></div>
+        <div class="field"><label>仓库名 <span class="req">*</span></label><el-input v-model="edit.name" maxlength="100" placeholder="eims" /></div>
+        <div class="field full"><label>备注</label><el-input v-model="edit.note" maxlength="1000" /></div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button class="btn primary" @click="save"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button type="primary" @click="save"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
 
     <Modal v-if="planVisible && planRepo" :title="planRepo.owner + '/' + planRepo.name + ' · 发布计划'" icon="calendar-clock" @close="planVisible = false">
       <div v-for="p in plansOf(planRepo.id)" :key="p.id" class="ms-item">
-        <span class="pill" :class="p.released ? 'st-done' : 'st-hold'">{{ p.released ? '已发布' : '待发布' }}</span>
+        <el-tag size="small" :type="p.released ? 'success' : 'warning'">{{ p.released ? '已发布' : '待发布' }}</el-tag>
         <div class="ms-t">
           <div style="font-weight: 600">{{ p.tag }}</div>
           <div class="muted" style="font-size: 12px">{{ p.notes || '' }}</div>
         </div>
         <div class="ms-dates">
           <span v-if="p.planDate" class="muted">{{ formatDate(p.planDate) }}</span>
-          <button class="icon-btn" type="button" :title="p.released ? '退回待发' : '标记发布'" @click="togglePlan(p)"><AppIcon :name="p.released ? 'refresh' : 'check'" :size="13" /></button>
-          <button class="icon-btn" type="button" @click="deletePlan(p)"><AppIcon name="trash" :size="13" /></button>
+          <el-button text class="icon-btn" :title="p.released ? '退回待发' : '标记发布'" @click="togglePlan(p)"><AppIcon :name="p.released ? 'refresh' : 'check'" :size="13" /></el-button>
+          <el-button text class="icon-btn" @click="deletePlan(p)"><AppIcon name="trash" :size="13" /></el-button>
         </div>
       </div>
       <div class="form-grid" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-light)">
-        <div class="field"><label>版本号 <span class="req">*</span></label><input v-model="planTag" class="input" maxlength="50" placeholder="v1.2.0" /></div>
-        <div class="field"><label>计划日期</label><input v-model="planDate" class="input" type="date" /></div>
-        <div class="field full"><label>版本说明</label><input v-model="planNotes" class="input" maxlength="500" /></div>
-        <div class="field full" style="text-align: right"><button class="btn primary" @click="addPlan"><AppIcon name="plus" :size="14" /> 加计划</button></div>
+        <div class="field"><label>版本号 <span class="req">*</span></label><el-input v-model="planTag" maxlength="50" placeholder="v1.2.0" /></div>
+        <div class="field"><label>计划日期</label><el-date-picker v-model="planDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></div>
+        <div class="field full"><label>版本说明</label><el-input v-model="planNotes" maxlength="500" /></div>
+        <div class="field full" style="text-align: right"><el-button type="primary" @click="addPlan"><AppIcon name="plus" :size="14" /> 加计划</el-button></div>
       </div>
     </Modal>
   </template>

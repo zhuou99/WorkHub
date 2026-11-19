@@ -49,8 +49,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -59,38 +59,44 @@ onMounted(load)
         <div class="page-sub">博客园 / 公众号每次导出的留痕：成功失败一眼看清。</div>
       </div>
       <div class="page-actions">
-        <button class="btn" :disabled="!items.length" @click="clearAll"><AppIcon name="trash" :size="14" /> 清空</button>
+        <el-button :disabled="!items.length" @click="clearAll"><AppIcon name="trash" :size="14" /> 清空</el-button>
       </div>
     </div>
 
     <div class="page-toolbar">
-      <div class="search" style="position: relative">
-        <input v-model="kw" class="input" style="padding-left: 32px" placeholder="搜索文章标题 / 渠道 / 详情" />
-        <AppIcon name="search" :size="15" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted)" />
-      </div>
-      <select v-model="result" class="input" style="width: 120px">
-        <option value="all">成功与失败</option>
-        <option value="success">只看成功</option>
-        <option value="failure">只看失败</option>
-      </select>
+      <el-input v-model="kw" placeholder="搜索文章标题 / 渠道 / 详情">
+        <template #prefix><AppIcon name="search" :size="15" /></template>
+      </el-input>
+      <el-select v-model="result" style="width: 120px">
+        <el-option value="all" label="成功与失败" />
+        <el-option value="success" label="只看成功" />
+        <el-option value="failure" label="只看失败" />
+      </el-select>
     </div>
 
-    <div v-if="!shown.length" class="page-empty">
-      <p>还没有发布记录。去「文章」页导出到博客园或公众号，这里就会留下痕迹。</p>
-    </div>
+    <el-empty v-if="!shown.length" description="还没有发布记录。去「文章」页导出到博客园或公众号，这里就会留下痕迹。" />
 
-    <table v-else class="table">
-      <thead><tr><th>文章</th><th>渠道</th><th>结果</th><th>详情</th><th>时间</th><th class="right">操作</th></tr></thead>
-      <tbody>
-        <tr v-for="l in shown" :key="l.id">
-          <td>{{ l.articleTitle || '—' }}</td>
-          <td><span class="pill st-talking">{{ CHANNEL_TEXT[l.channel] || l.channel }}</span></td>
-          <td><span class="pill" :class="l.result === 'success' ? 'st-done' : 'st-void'">{{ l.result === 'success' ? '成功' : '失败' }}</span></td>
-          <td class="muted">{{ l.detail || '' }}</td>
-          <td>{{ formatDateTime(l.createTime) }}</td>
-          <td class="right"><button class="btn" style="height: 26px; font-size: 12px; color: var(--danger-color)" @click="remove(l)"><AppIcon name="trash" :size="13" /></button></td>
-        </tr>
-      </tbody>
-    </table>
+    <el-table v-else :data="shown">
+      <el-table-column label="文章">
+        <template #default="{ row }">{{ row.articleTitle || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="渠道">
+        <template #default="{ row }"><el-tag size="small" type="info">{{ CHANNEL_TEXT[row.channel] || row.channel }}</el-tag></template>
+      </el-table-column>
+      <el-table-column label="结果">
+        <template #default="{ row }"><el-tag size="small" :type="row.result === 'success' ? 'success' : 'danger'">{{ row.result === 'success' ? '成功' : '失败' }}</el-tag></template>
+      </el-table-column>
+      <el-table-column label="详情">
+        <template #default="{ row }"><span class="muted">{{ row.detail || '' }}</span></template>
+      </el-table-column>
+      <el-table-column label="时间">
+        <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" align="right">
+        <template #default="{ row }">
+          <el-button size="small" type="danger" plain @click="remove(row as PublishLog)"><AppIcon name="trash" :size="13" /></el-button>
+        </template>
+      </el-table-column>
+    </el-table>
   </template>
 </template>

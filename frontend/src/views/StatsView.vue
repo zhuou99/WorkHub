@@ -126,8 +126,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -136,10 +136,10 @@ onMounted(load)
         <div class="page-sub">年度开票、回款、支出按月汇总，净落袋一眼看清。</div>
       </div>
       <div class="page-actions">
-        <select :value="year" class="input" style="width: 120px" @change="onYearChanged(($event.target as HTMLSelectElement).value)">
-          <option v-for="y in years" :key="y" :value="String(y)">{{ y }} 年</option>
-        </select>
-        <button class="btn primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 记支出</button>
+        <el-select :model-value="year" style="width: 120px" @update:model-value="onYearChanged">
+          <el-option v-for="y in years" :key="y" :value="String(y)" :label="`${y} 年`" />
+        </el-select>
+        <el-button type="primary" @click="openAdd"><AppIcon name="plus" :size="14" /> 记支出</el-button>
       </div>
     </div>
 
@@ -179,45 +179,57 @@ onMounted(load)
     <div class="card">
       <div class="card-title"><AppIcon name="coins" :size="16" /> 支出流水（{{ yearExpenses.length }} 笔）</div>
       <div v-if="!yearExpenses.length" class="empty">这个年度还没有支出记录。</div>
-      <table v-else class="table">
-        <thead><tr><th>日期</th><th>类别</th><th>项目</th><th class="right">金额</th><th>备注</th><th class="right">操作</th></tr></thead>
-        <tbody>
-          <tr v-for="e in expPage" :key="e.id">
-            <td>{{ formatDate(e.happenDate) }}</td>
-            <td><span class="pill st-talking">{{ e.category }}</span></td>
-            <td>{{ projName(e.projectId) || '—' }}</td>
-            <td class="num">{{ money(Number(e.amount)) }}</td>
-            <td class="muted">{{ e.note || '' }}</td>
-            <td class="right"><div class="row-actions">
-              <button class="btn" style="height: 26px; font-size: 12px" @click="openEdit(e)"><AppIcon name="edit" :size="13" /></button>
-              <button class="btn" style="height: 26px; font-size: 12px; color: var(--danger-color)" @click="remove(e)"><AppIcon name="trash" :size="13" /></button>
-            </div></td>
-          </tr>
-        </tbody>
-      </table>
+      <el-table v-else :data="expPage">
+        <el-table-column label="日期">
+          <template #default="{ row }">{{ formatDate(row.happenDate) }}</template>
+        </el-table-column>
+        <el-table-column label="类别">
+          <template #default="{ row }"><el-tag size="small" type="info">{{ row.category }}</el-tag></template>
+        </el-table-column>
+        <el-table-column label="项目">
+          <template #default="{ row }">{{ projName(row.projectId) || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="金额" align="right">
+          <template #default="{ row }"><span class="num">{{ money(Number(row.amount)) }}</span></template>
+        </el-table-column>
+        <el-table-column label="备注">
+          <template #default="{ row }"><span class="muted">{{ row.note || '' }}</span></template>
+        </el-table-column>
+        <el-table-column label="操作" align="right">
+          <template #default="{ row }">
+            <div class="row-actions">
+              <el-button size="small" @click="openEdit(row as Expense)"><AppIcon name="edit" :size="13" /></el-button>
+              <el-button size="small" type="danger" plain @click="remove(row as Expense)"><AppIcon name="trash" :size="13" /></el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
       <div v-if="expPageCount > 1" class="pager">
-        <button class="btn" :disabled="expPage0 <= 0" @click="expPage0--"><AppIcon name="chevron-left" :size="13" /></button>
+        <el-button size="small" :disabled="expPage0 <= 0" @click="expPage0--"><AppIcon name="chevron-left" :size="13" /></el-button>
         <span>{{ expPage0 + 1 }} / {{ expPageCount }}</span>
-        <button class="btn" :disabled="expPage0 >= expPageCount - 1" @click="expPage0++"><AppIcon name="chevron-right" :size="13" /></button>
+        <el-button size="small" :disabled="expPage0 >= expPageCount - 1" @click="expPage0++"><AppIcon name="chevron-right" :size="13" /></el-button>
       </div>
     </div>
 
     <Modal v-if="editing && edit" :title="isNew ? '记一笔支出' : '编辑支出'" icon="coins" @close="editing = false">
       <div class="form-grid">
         <div class="field full"><label>类别 <span class="req">*</span></label>
-          <input v-model="edit.category" class="input" maxlength="40" list="cat-hints" />
+          <el-input v-model="edit.category" maxlength="40" list="cat-hints" />
           <datalist id="cat-hints"><option v-for="c in CATEGORY_HINTS" :key="c" :value="c" /></datalist>
         </div>
-        <div class="field"><label>金额（元）</label><input v-model.number="edit.amount" class="input" type="number" min="0" /></div>
-        <div class="field"><label>发生日期</label><input v-model="edit.happenDate" class="input" type="date" /></div>
+        <div class="field"><label>金额（元）</label><el-input-number v-model="edit.amount" :controls="false" :min="0" style="width: 100%" /></div>
+        <div class="field"><label>发生日期</label><el-date-picker type="date" value-format="YYYY-MM-DD" v-model="edit.happenDate" style="width: 100%" /></div>
         <div class="field"><label>项目</label>
-          <select v-model="edit.projectId" class="input"><option :value="null">不挂项目</option><option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option></select>
+          <el-select :empty-values="[]" v-model="edit.projectId" style="width: 100%">
+            <el-option :value="(null as any)" label="不挂项目" />
+            <el-option v-for="p in projects" :key="p.id" :value="p.id" :label="p.name" />
+          </el-select>
         </div>
-        <div class="field"><label>备注</label><input v-model="edit.note" class="input" maxlength="500" /></div>
+        <div class="field"><label>备注</label><el-input v-model="edit.note" maxlength="500" /></div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button class="btn primary" @click="save"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button type="primary" @click="save"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
   </template>

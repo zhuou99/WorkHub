@@ -23,6 +23,11 @@ const edit = ref<Task | null>(null)
 
 const COLUMNS = TASK_COLUMNS
 
+/* 优先级胶囊 → el-tag type 映射 */
+type TagType = 'info' | 'primary' | 'success' | 'warning' | 'danger'
+
+const PRIORITY_TAG: Record<string, TagType> = { high: 'danger', normal: 'primary', low: 'info' }
+
 const stats = computed(() => {
   const now = today()
   const isLate = (t: Task) => t.status !== 'done' && dateOf(t.dueDate) !== null && dateOf(t.dueDate)! < now
@@ -135,8 +140,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="loading"><div class="spinner" /></div>
-  <div v-else-if="error" class="card"><div class="empty">{{ error }}</div></div>
+  <div v-if="loading" v-loading="true" style="min-height: 240px" />
+  <el-alert v-else-if="error" type="error" :title="error" :closable="false" show-icon />
 
   <template v-else>
     <div class="page-head">
@@ -145,7 +150,7 @@ onMounted(load)
         <div class="page-sub">待办 / 进行中 / 已完成 / 搁置四列：拖一下就算换状态，截止日和优先级直接标在卡上。</div>
       </div>
       <div class="page-actions">
-        <button class="btn primary" @click="openAdd()"><AppIcon name="plus" :size="14" /> 新建任务</button>
+        <el-button type="primary" @click="openAdd()"><AppIcon name="plus" :size="14" /> 新建任务</el-button>
       </div>
     </div>
 
@@ -166,10 +171,10 @@ onMounted(load)
 
     <!-- 工具栏：项目筛选 -->
     <div class="page-toolbar">
-      <select v-model="projectId" class="input" style="width: 180px">
-        <option value="">全部项目</option>
-        <option v-for="p in projectFilter" :key="p.value" :value="p.value">{{ p.text }}</option>
-      </select>
+      <el-select :empty-values="[]" v-model="projectId" style="width: 180px">
+        <el-option value="" label="全部项目" />
+        <el-option v-for="p in projectFilter" :key="p.value" :value="p.value" :label="p.text" />
+      </el-select>
       <span class="muted" style="font-size: 12px"><AppIcon name="info" :size="12" /> 卡片可拖动换列，窄屏用左右箭头</span>
     </div>
 
@@ -189,9 +194,9 @@ onMounted(load)
           <span class="kb-dot" :class="col" />
           <b>{{ TASK_STATUS[col] }}</b>
           <span class="kb-count">{{ inColumn(col).length }}</span>
-          <button class="icon-btn kb-add" type="button" :title="`在「${TASK_STATUS[col]}」新建`" @click="openAdd(col)">
+          <el-button text class="icon-btn kb-add" :title="`在「${TASK_STATUS[col]}」新建`" @click="openAdd(col)">
             <AppIcon name="plus" :size="14" />
-          </button>
+          </el-button>
         </div>
         <div class="kb-cards">
           <div v-if="!inColumn(col).length" class="kb-none">{{ over === col ? '松手放这里' : '空' }}</div>
@@ -206,17 +211,17 @@ onMounted(load)
           >
             <div class="tk-title" @click="openEdit(t)">{{ t.title }}</div>
             <div class="tk-sub">
-              <span class="pill" :class="'pr-' + (t.priority || 'normal')">{{ label(PRIORITY, t.priority, '普通') }}</span>
+              <el-tag size="small" :type="PRIORITY_TAG[t.priority || 'normal'] ?? 'primary'">{{ label(PRIORITY, t.priority, '普通') }}</el-tag>
               <span v-if="t.dueDate" class="tk-due" :class="{ late: isLate(t) }">{{ formatMd(t.dueDate) }}</span>
               <span class="tk-proj">{{ projName(t.projectId) }}</span>
             </div>
             <div class="tk-move">
-              <button class="icon-btn" type="button" :disabled="COLUMNS.indexOf(col) <= 0" title="移到上一列" @click="shift(t, -1)">
+              <el-button text class="icon-btn" :disabled="COLUMNS.indexOf(col) <= 0" title="移到上一列" @click="shift(t, -1)">
                 <AppIcon name="chevron-left" :size="14" />
-              </button>
-              <button class="icon-btn" type="button" :disabled="COLUMNS.indexOf(col) >= COLUMNS.length - 1" title="移到下一列" @click="shift(t, 1)">
+              </el-button>
+              <el-button text class="icon-btn" :disabled="COLUMNS.indexOf(col) >= COLUMNS.length - 1" title="移到下一列" @click="shift(t, 1)">
                 <AppIcon name="chevron-right" :size="14" />
-              </button>
+              </el-button>
             </div>
           </div>
         </div>
@@ -228,42 +233,42 @@ onMounted(load)
       <div class="form-grid">
         <div class="field full">
           <label>标题 <span class="req">*</span></label>
-          <input v-model="edit.title" class="input" maxlength="300" placeholder="要做的事，一句话说清" />
+          <el-input v-model="edit.title" maxlength="300" placeholder="要做的事，一句话说清" />
         </div>
         <div class="field">
           <label>列</label>
-          <select v-model="edit.status" class="input">
-            <option v-for="c in COLUMNS" :key="c" :value="c">{{ TASK_STATUS[c] }}</option>
-          </select>
+          <el-select v-model="edit.status">
+            <el-option v-for="c in COLUMNS" :key="c" :value="c" :label="TASK_STATUS[c]" />
+          </el-select>
         </div>
         <div class="field">
           <label>优先级</label>
-          <select v-model="edit.priority" class="input">
-            <option value="high">急</option>
-            <option value="normal">普通</option>
-            <option value="low">不急</option>
-          </select>
+          <el-select v-model="edit.priority">
+            <el-option value="high" label="急" />
+            <el-option value="normal" label="普通" />
+            <el-option value="low" label="不急" />
+          </el-select>
         </div>
         <div class="field">
           <label>截止</label>
-          <input v-model="edit.dueDate" class="input" type="date" />
+          <el-date-picker v-model="edit.dueDate" type="date" value-format="YYYY-MM-DD" />
         </div>
         <div class="field">
           <label>项目</label>
-          <select v-model="edit.projectId" class="input">
-            <option :value="null">不挂项目</option>
-            <option v-for="p in projectOptions" :key="p.value" :value="p.value">{{ p.text }}</option>
-          </select>
+          <el-select :empty-values="[]" v-model="edit.projectId">
+            <el-option :value="(null as any)" label="不挂项目" />
+            <el-option v-for="p in projectOptions" :key="p.value" :value="p.value" :label="p.text" />
+          </el-select>
         </div>
         <div class="field full">
           <label>备注</label>
-          <textarea v-model="edit.note" class="input" rows="3" maxlength="1000" placeholder="链接、要点、验收口径" />
+          <el-input v-model="edit.note" type="textarea" :rows="3" maxlength="1000" placeholder="链接、要点、验收口径" />
         </div>
       </div>
       <template #footer>
-        <button class="btn" @click="editing = false">取消</button>
-        <button v-if="!isNew" class="btn" style="color: var(--danger-color)" @click="remove()">删除</button>
-        <button class="btn primary" @click="save()"><AppIcon name="check" :size="14" /> 保存</button>
+        <el-button @click="editing = false">取消</el-button>
+        <el-button v-if="!isNew" type="danger" plain @click="remove()">删除</el-button>
+        <el-button type="primary" @click="save()"><AppIcon name="check" :size="14" /> 保存</el-button>
       </template>
     </Modal>
   </template>
